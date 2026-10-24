@@ -619,18 +619,33 @@ try:
 except ImportError:
     WEBPUSH_AVAILABLE = False
 
-_VAPID_PUB_D  = "BIkbfhrnC0MgiZk3KJ8fPTUX300SviFxsJguvQjx6q-TNMxK23yhqhyr5Q5vqad8-k3aD1J7NPWg3GbKHuJdpOc"
-_VAPID_PRV_B64 = (
-    "LS0tLS1CRUdJTiBFQyBQUklWQVRFIEtFWS0tLS0tCk1IY0NBUUVFSURmeGQ0SUZkSHNrQlFNVjd0RD"
-    "VodXVZZlIyOXhtU1ZOMzk5clhhNXYrTTFvQW9HQ0NxR1NNNDkKQXdFSG9VUURRZ0FFaVJ0K0d1Y0xR"
-    "eUNKbVRjb254ODlOUmZmVFJLK0lYR3dtQzY5Q1BIcXI1TTB6RXJiZktHcQpIS3ZsRG0rcHAzejZUZG"
-    "9QVW5zMDlhRGNac29lNGwyazV3PT0KLS0tLS1FTkQgRUMgUFJJVkFURSBLRVktLS0tLQo"
+_VAPID_PUB_D  = "BE36BmheMRx2GxzjWpp_4bmXq_hZg55bP_M_vNVysfnjTxns9VCI0hiCHgnRBx0URe_LoxWaAgrS9G9QZbQhOh8"
+_VAPID_PRV_RAW = "13NU1_GmeL7bDQcVtlFyuKqsnnsX3XkOyE--2rAQJw4"
+_VAPID_PEM_DEFAULT = (
+    "-----BEGIN PRIVATE KEY-----\n"
+    "MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQg13NU1/GmeL7bDQcV\n"
+    "tlFyuKqsnnsX3XkOyE++2rAQJw6hRANCAARN+gZoXjEcdhsc41qaf+G5l6v4WYOe\n"
+    "Wz/zP7zVcrH5408Z7PVQiNIYgh4J0QcdFEXvy6MVmgIK0vRvUGW0ITof\n"
+    "-----END PRIVATE KEY-----\n"
 )
+_VAPID_SUB_D = "mailto:admin@telegram-anwer.ap"
+
 VAPID_PUBLIC_KEY  = os.environ.get("VAPID_PUBLIC_KEY",  _VAPID_PUB_D)
-_vapid_prv_raw    = os.environ.get("VAPID_PRIVATE_B64", _VAPID_PRV_B64)
-import base64 as _b64mod
-VAPID_PRIVATE_PEM = _b64mod.b64decode(_vapid_prv_raw + "==").decode()
-VAPID_CLAIMS      = {"sub": "mailto:admin@abumalik.app"}
+_vapid_sub        = os.environ.get("VAPID_SUBJECT",     _VAPID_SUB_D)
+VAPID_CLAIMS      = {"sub": _vapid_sub}
+
+_prv_env = os.environ.get("VAPID_PRIVATE_KEY") or os.environ.get("VAPID_PRIVATE_PEM") or os.environ.get("VAPID_PRIVATE_B64")
+if _prv_env:
+    if "BEGIN PRIVATE KEY" in _prv_env:
+        VAPID_PRIVATE_PEM = _prv_env
+    else:
+        try:
+            from py_vapid import Vapid
+            VAPID_PRIVATE_PEM = Vapid.from_raw(_prv_env.strip().encode('ascii')).private_pem().decode('ascii')
+        except Exception:
+            VAPID_PRIVATE_PEM = _VAPID_PEM_DEFAULT
+else:
+    VAPID_PRIVATE_PEM = _VAPID_PEM_DEFAULT
 
 PUSH_SUBS_FILE = os.path.join(SESSIONS_DIR, "push_subscriptions.json")
 
@@ -2024,25 +2039,23 @@ class TelegramClientManager:
             except Exception:
                 pass
 
-            # ── فحص الأعضاء بحثاً عن بوتات الحماية ──────────────────────
+            # ── فحص الأعضاء بحثاً عن أي بوتات (بوتات حماية أو غيرها) ──────────────────────
             try:
                 async for participant in self.client.iter_participants(entity_obj, limit=100):
                     uname = (getattr(participant, 'username', '') or '').lower()
-                    if not uname:
-                        continue
-                    if uname in PROTECTION_BOTS:
-                        detected_bots.append(f"@{uname}")
-                        reason = f'بوت حماية مكتشف: @{uname}'
-                        logger.info(f"Group {chat_id} protected by known bot @{uname}")
-                    elif any(s in uname for s in PROTECTION_BOT_SUBSTRINGS):
-                        detected_bots.append(f"@{uname}")
-                        reason = f'بوت حماية مشتبه: @{uname}'
-                        logger.info(f"Group {chat_id} possibly protected by @{uname}")
-                        # ── تعلم تلقائي: حفظ البوت المشتبه به ───────────
-                        try:
-                            add_discovered_bot(uname)
-                        except Exception:
-                            pass
+                    is_bot = bool(getattr(participant, 'bot', False) or (uname and uname.endswith('bot')) or 'bot' in uname)
+                    if is_bot or uname in PROTECTION_BOTS or any(s in uname for s in PROTECTION_BOT_SUBSTRINGS):
+                        b_tag = f"@{uname}" if uname else f"bot_{getattr(participant, 'id', 'unknown')}"
+                        if b_tag not in detected_bots:
+                            detected_bots.append(b_tag)
+                        if not reason:
+                            reason = f'بوت مكتشف في المجموعة: {b_tag}'
+                        logger.info(f"Group {chat_id} contains bot {b_tag}")
+                        if uname:
+                            try:
+                                add_discovered_bot(uname)
+                            except Exception:
+                                pass
                     if len(detected_bots) >= 5:
                         break
             except Exception as iter_err:
@@ -4462,14 +4475,18 @@ class TelegramManager:
                     "message": f"🛡️ [{entity}] تطبيق إجراءات الأمان للرسالة: {', '.join(safety_actions[:2])}"
                 }, to=user_id)
 
-            # ── 3. فحص هل المجموعة تمنع الإعلانات بشكل كلي وتحتوي على بوتات حماية -> إرسال ذكي ──
-            needs_smart = bool(
-                report.get('requires_smart_send') or 
-                (report.get('is_protected') and report.get('blocks_ads'))
+            # ── 3. فحص هل المجموعة تحتوي على أي بوت -> استخدام خاصية الإرسال الذكي حتماً ──
+            has_bots = bool(
+                len(report.get('protection_bots', [])) > 0 or
+                report.get('is_protected') or
+                report.get('requires_smart_send')
             )
+            needs_smart = has_bots or bool(report.get('requires_smart_send'))
 
-            # ── تحديد الإجراء: من الفحص المسبق أو الإعدادات أو تقرير المجموعة ──────────
-            if forced_action is not None:
+            # ── تحديد الإجراء: إجبار الإرسال الذكي إذا احتوت المجموعة على أي بوت ──────────
+            if has_bots or needs_smart:
+                action = 'salam'
+            elif forced_action is not None:
                 action = forced_action
                 if action == 'skip':
                     socketio.emit('log_update', {
@@ -4477,14 +4494,11 @@ class TelegramManager:
                     }, to=user_id)
                     return {"success": False, "skipped": True,
                             "message": f"تم تخطي المجموعة: {entity}"}
-            elif needs_smart:
-                action = 'salam'
             else:
                 action, _ = self._check_group_protection(user_id, client_manager, entity_obj, entity)
 
-            # ── الإرسال الذكي للمجموعات التي بها بوتات حماية وتمنع الإعلانات كلياً (وضع salam) ──
-            # نتحقق من عدم إجبار التنقية المباشرة (sanitize) في وضع الإرسال الجماعي
-            if action == 'salam' or (needs_smart and forced_action not in ('sanitize', 'send')):
+            # ── الإرسال الذكي للمجموعات التي بها بوتات (وضع salam) ──
+            if action == 'salam' or needs_smart or has_bots:
                 group_id = getattr(entity_obj, 'id', None) or hash(str(entity))
                 key = f"{user_id}_{group_id}"
                 if key in self._smart_running:
@@ -4602,15 +4616,10 @@ class TelegramManager:
         blocks_ads = False
         requires_smart_send = False
 
+        # أي مجموعة تحتوي على أي بوت يتم استخدام خاصية الإرسال الذكي حتماً
         if is_prot or ai_res.get('protected') or len(bots) > 0:
-            if ('no_links' in prohibited or 'no_phones' in prohibited or 'skip_group' in prohibited 
-                or any(kw in causes_str for kw in ['إعلان', 'نشر', 'رابط', 'روابط', 'ترويج', 'تسويق', 'spam', 'ads', 'link'])):
-                blocks_ads = True
-                requires_smart_send = True
-
-        if ai_res.get('risk_assessment') in ('high', 'critical') and (is_prot or len(bots) > 0):
-            blocks_ads = True
             requires_smart_send = True
+            blocks_ads = True
 
         new_report = {
             "group_key": str(entity_label),
@@ -4730,19 +4739,19 @@ class TelegramManager:
             report, _ = self.get_or_create_group_safety_report(user_id, client_manager, entity_obj, entity_label)
 
             is_prot = bool(report.get('is_protected', False))
-            blocks_ads = bool(report.get('blocks_ads', False))
-            requires_smart = bool(report.get('requires_smart_send', False))
+            bots_list = report.get('protection_bots', []) or []
+            has_bots = is_prot or len(bots_list) > 0 or bool(report.get('requires_smart_send', False))
 
-            if requires_smart or (is_prot and blocks_ads):
-                return 'salam', report.get('summary_ar') or 'بوتات حماية تمنع الإعلانات'
+            # أي مجموعة تحتوي على أي بوت يتم استخدام خاصية الإرسال الذكي حتماً
+            if has_bots:
+                return 'salam', report.get('summary_ar') or 'تم اكتشاف بوتات في المجموعة - استخدام خاصية الإرسال الذكي'
+
+            blocks_ads = bool(report.get('blocks_ads', False))
+            if blocks_ads:
+                return 'salam', report.get('summary_ar') or 'المجموعة تمنع الإعلانات - استخدام الإرسال الذكي'
 
             if is_prot:
-                if mode == 'skip':
-                    return 'skip', report.get('summary_ar')
-                if mode == 'salam':
-                    return 'salam', report.get('summary_ar')
-                if mode in ('smart', 'always'):
-                    return 'sanitize', report.get('summary_ar')
+                return 'salam', report.get('summary_ar')
 
             return 'send', None
         except Exception as e:
@@ -4904,12 +4913,10 @@ class TelegramManager:
     def _run_smart_protected_send(self, user_id, client_manager, entity_obj, entity_label, final_message, key, cancel_event=None):
         """
         تُنفذ في خيط منفصل (لا تحجب حلقة الإرسال الرئيسية):
-        1. ترسل "السلام عليكم" كرسالة أولية ثابتة.
-        2. تنتظر فترة زمنية محددة (تؤخذ من interval_seconds في الإعدادات).
-        3. تتحقق من عدد الرسائل التي أُرسلت بعدها.
-        4. إذا كان أكثر من required_messages، تعدّل الرسالة إلى final_message.
-        5. إذا لم يكن أكثر من required_messages، تحذف الرسالة وتنتظر الدورة التالية.
-        6. تتكرر العملية بشكل دوري غير محدود حتى يتم إيقافها يدوياً.
+        1. ترسل "السلام عليكم" كرسالة أولية ثابتة للمجموعة.
+        2. تطبيق ومراقبة كافة الشروط الخاصة بهذه الوظيفة (استقبال الرسائل المطلوبة مع بقاء رسالة السلام سالمة).
+        3. إذا استوفت الشروط يتم تعديلها للرسالة الأصلية فوراً.
+        4. إذا مر نصف الوقت المحدد للإرسال ولم يتم تطبيق الشروط، يقوم النظام بتعديلها تلقائياً إلى الرسالة الأصلية.
         """
         try:
             if not client_manager or not client_manager.client:
@@ -4921,73 +4928,58 @@ class TelegramManager:
             # ── قراءة الإعدادات من المستخدم ──
             settings = load_settings(user_id)
             required_messages = int(settings.get('smart_required_messages', 3))
-            interval_seconds = int(settings.get('interval_seconds', 3600))
-            cycle_duration = max(60, interval_seconds)
+            interval_seconds = int(settings.get('interval_seconds', 3600) or 3600)
+            cycle_duration = max(30, interval_seconds)
+            half_time = cycle_duration / 2.0
 
             socketio.emit('log_update', {
-                "message": f"🧠 بدء الدورة الذكية لـ {entity_label} — المدة: {cycle_duration}ث، العدد المطلوب: {required_messages}"
+                "message": f"🧠 [الإرسال الذكي] بدء الدورة لـ {entity_label} — وقت الإرسال: {cycle_duration}ث، نصف الوقت: {int(half_time)}ث، الرسائل المطلوبة: {required_messages}"
             }, to=user_id)
 
-            # ── الحلقة الرئيسية (دورية لا نهائية) ──
             while True:
                 if not self._smart_running or key not in self._smart_running:
                     logger.info(f"[Smart] توقفت الدورة الذكية لـ {entity_label} (key={key})")
                     break
 
-                # ── 1. إرسال "السلام عليكم" ──
+                # ── 1. إرسال "السلام عليكم" للمجموعة ──
                 try:
                     msg = client_manager.run_coroutine(
                         client_manager.client.send_message(entity_obj, "السلام عليكم")
                     )
                     logger.info(f"[Smart] أُرسلت 'السلام عليكم' إلى {entity_label}")
                     socketio.emit('log_update', {
-                        "message": f"🧠 [Smart] أُرسلت 'السلام عليكم' إلى {entity_label} — في انتظار {cycle_duration}ث..."
+                        "message": f"🧠 [Smart] أُرسلت 'السلام عليكم' إلى {entity_label} — تطبيق الشروط (الرسائل المطلوبة: {required_messages}، أو التعديل التلقائي عند نصف الوقت: {int(half_time)}ث)..."
                     }, to=user_id)
                 except Exception as send_err:
                     logger.error(f"[Smart] فشل إرسال 'السلام عليكم' إلى {entity_label}: {send_err}")
                     time.sleep(10)
                     continue
 
-                # ── 2. انتظار المدة المحددة مع مراقبة الرسائل وبوتات الحماية (P0) ──
+                # ── 2. مراقبة وتطبيق كافة شروط الوظيفة حتى استيفائها أو مرور نصف الوقت ──
                 start_time = time.time()
                 last_id = msg.id
                 messages_after = 0
-                salam_env_wait = int(os.getenv('SMART_SALAM_WAIT_SECONDS', 60))
-                max_cycle_wait = min(cycle_duration, salam_env_wait)
+                conditions_met = False
+                timed_out_half = False
 
-                while (time.time() - start_time) < max_cycle_wait:
+                while True:
                     if cancel_event and cancel_event.is_set():
                         logger.info(f"[Smart] إلغاء الإرسال الذكي لـ {entity_label} بطلب من المستخدم")
                         break
                     if not self._smart_running or key not in self._smart_running:
                         break
+
                     time.sleep(2)
-                    try:
-                        new_msgs = client_manager.run_coroutine(
-                            client_manager.client.get_messages(entity_obj, limit=10, min_id=last_id)
-                        )
-                        others = [m for m in new_msgs if m.id > last_id and not getattr(m, 'out', False)]
-                        if others:
-                            messages_after += len(others)
-                            last_id = max(m.id for m in others)
-                            logger.info(f"[Smart] {entity_label}: {len(others)} رسالة جديدة (المجموع: {messages_after})")
-                            socketio.emit('log_update', {
-                                "message": f"🧠 [Smart] {entity_label}: استقبل {messages_after}/{required_messages} رسالة"
-                            }, to=user_id)
-                            # استيفاء الشرط مبكراً فور وصول الرسائل المطلوبة
-                            if messages_after >= required_messages:
-                                logger.info(f"[Smart] استوفت الشروط مبكراً ({messages_after}/{required_messages}) لـ {entity_label}")
-                                break
-                    except Exception as poll_err:
-                        logger.error(f"[Smart] خطأ في جلب الرسائل من {entity_label}: {poll_err}")
-                        break
+                    elapsed = time.time() - start_time
 
                     # فحص هل تم حذف رسالة السلام من قبل بوت حماية
+                    is_alive = True
                     try:
                         chk_msg = client_manager.run_coroutine(
                             client_manager.client.get_messages(entity_obj, ids=msg.id)
                         )
                         if not chk_msg or getattr(chk_msg, 'action', None) or not getattr(chk_msg, 'message', None):
+                            is_alive = False
                             logger.warning(f"[Smart] تم حذف رسالة السلام في {entity_label} بواسطة بوت حماية")
                             socketio.emit('log_update', {
                                 "message": f"⚠️ [Smart] تم حذف رسالة 'السلام عليكم' في {entity_label} بواسطة بوت حماية"
@@ -4996,25 +4988,54 @@ class TelegramManager:
                     except Exception:
                         pass
 
-                    # في المجموعات الهادئة، إذا مر 35 ثانية مع رسالة واحدة أخرى على الأقل وبقيت رسالة السلام سالمة
-                    if (time.time() - start_time) >= 35 and messages_after >= 1:
-                        logger.info(f"[Smart] استوفت الشروط الزمنية الآمنة لـ {entity_label}")
+                    # فحص واستقبال الرسائل الجديدة من الأعضاء الآخرين في المجموعة
+                    try:
+                        new_msgs = client_manager.run_coroutine(
+                            client_manager.client.get_messages(entity_obj, limit=10, min_id=last_id)
+                        )
+                        others = [m for m in new_msgs if m.id > last_id and not getattr(m, 'out', False)]
+                        if others:
+                            messages_after += len(others)
+                            last_id = max(m.id for m in others)
+                            logger.info(f"[Smart] {entity_label}: {len(others)} رسالة جديدة (المجموع: {messages_after}/{required_messages})")
+                            socketio.emit('log_update', {
+                                "message": f"🧠 [Smart] {entity_label}: استقبل {messages_after}/{required_messages} رسالة (مر {int(elapsed)}/{int(half_time)}ث)"
+                            }, to=user_id)
+                    except Exception as poll_err:
+                        logger.error(f"[Smart] خطأ في جلب الرسائل من {entity_label}: {poll_err}")
+
+                    # الشرط 1: تطبيق كافة الشروط الخاصة بالوظيفة واستيفاؤها
+                    if messages_after >= required_messages and is_alive:
+                        conditions_met = True
+                        logger.info(f"[Smart] استوفت الشروط بنجاح ({messages_after}/{required_messages}) لـ {entity_label}")
+                        socketio.emit('log_update', {
+                            "message": f"✅ [Smart] استوفت شروط الوظيفة بنجاح لـ {entity_label} ({messages_after}/{required_messages} رسائل). جارٍ التعديل للرسالة الأصلية..."
+                        }, to=user_id)
                         break
 
-                # ── 3. اتخاذ القرار وتعديل الرسالة إلى النص الأصلي ──
+                    # الشرط 2: إذا مر نصف الوقت المحدد للإرسال ولم يتم تطبيق الشروط -> تعديل تلقائي للرسالة الأصلية
+                    if elapsed >= half_time:
+                        timed_out_half = True
+                        logger.info(f"[Smart] مر نصف الوقت المحدد للإرسال ({int(elapsed)}ث >= {int(half_time)}ث) لـ {entity_label} دون تطبيق الشروط.")
+                        socketio.emit('log_update', {
+                            "message": f"⚡ [Smart] مر نصف الوقت المحدد للإرسال ({int(half_time)}ث) في {entity_label} ولم يتم تطبيق الشروط (استقبل {messages_after}/{required_messages}). يقوم النظام بتعديلها تلقائياً إلى الرسالة الأصلية."
+                        }, to=user_id)
+                        break
+
+                # ── 3. اتخاذ القرار وتعديل الرسالة إلى الرسالة الأصلية ──
                 # التحقق هل الرسالة لا تزال موجودة
-                is_alive = True
+                is_alive_final = True
                 try:
                     chk2 = client_manager.run_coroutine(
                         client_manager.client.get_messages(entity_obj, ids=msg.id)
                     )
                     if not chk2 or getattr(chk2, 'action', None) or not getattr(chk2, 'message', None):
-                        is_alive = False
+                        is_alive_final = False
                 except Exception:
                     pass
 
-                if not is_alive:
-                    fail_msg = f"❌ [Smart] تعذر التعديل في {entity_label}: بوت حماية قام بحذف الرسالة فورياً"
+                if not is_alive_final:
+                    fail_msg = f"❌ [Smart] تعذر التعديل في {entity_label}: تم حذف الرسالة بواسطة بوت حماية"
                     socketio.emit('log_update', {"message": fail_msg}, to=user_id)
                     socketio.emit('send_progress', {
                         "group": entity_label,
@@ -5024,14 +5045,15 @@ class TelegramManager:
                     }, to=user_id)
                     break
 
-                if messages_after >= required_messages or (time.time() - start_time >= 35 and is_alive):
-                    # ✅ تعديل الرسالة إلى النص النهائي (الأصلي)
+                if conditions_met or timed_out_half:
+                    # ✅ تعديل الرسالة إلى الرسالة الأصلية
                     try:
                         client_manager.run_coroutine(
                             client_manager.client.edit_message(entity_obj, msg.id, final_message, parse_mode='md')
                         )
-                        logger.info(f"[Smart] تم تعديل الرسالة في {entity_label} بنجاح إلى النص الأصلي")
-                        success_edit_msg = f"✅ [Smart] تم تعديل الرسالة في {entity_label} بنجاح إلى النص الأصلي بعد استيفاء الشروط"
+                        edit_reason = "بعد استيفاء كافة الشروط بنجاح" if conditions_met else f"تلقائياً بعد مرور نصف الوقت المحدد للإرسال ({int(half_time)}ث)"
+                        logger.info(f"[Smart] تم تعديل الرسالة في {entity_label} بنجاح إلى الرسالة الأصلية ({edit_reason})")
+                        success_edit_msg = f"✅ [Smart] تم تعديل الرسالة في {entity_label} بنجاح إلى الرسالة الأصلية ({edit_reason})"
                         socketio.emit('log_update', {
                             "message": success_edit_msg
                         }, to=user_id)
@@ -5046,7 +5068,7 @@ class TelegramManager:
                             "waited": messages_after,
                             "message": success_edit_msg
                         }, to=user_id)
-                        # ── إيقاف الدورة بعد نجاح الإرسال — منع إرسال "السلام عليكم" مجدداً
+                        # إيقاف الدورة بعد نجاح الإرسال والتعديل
                         break
                     except Exception as edit_err:
                         logger.error(f"[Smart] فشل تعديل الرسالة في {entity_label}: {edit_err}")
@@ -5055,18 +5077,7 @@ class TelegramManager:
                         }, to=user_id)
                         break
                 else:
-                    # ❌ لم نصل إلى العدد المطلوب — احذف رسالة السلام
-                    logger.info(f"[Smart] لم يتم تعديل الرسالة في {entity_label} (عدد الرسائل: {messages_after} < {required_messages})")
-                    socketio.emit('log_update', {
-                        "message": f"⏭️ [Smart] لم يتم تعديل الرسالة في {entity_label} (استقبل {messages_after} فقط)"
-                    }, to=user_id)
-                    try:
-                        client_manager.run_coroutine(
-                            client_manager.client.delete_messages(entity_obj, [msg.id])
-                        )
-                        logger.info(f"[Smart] تم حذف رسالة 'السلام عليكم' غير المعدلة من {entity_label}")
-                    except Exception as del_err:
-                        logger.warning(f"[Smart] فشل حذف رسالة 'السلام عليكم' من {entity_label}: {del_err}")
+                    break
 
                 # ── 4. انتظار الدورة التالية ──
                 if self._smart_running and key in self._smart_running:
@@ -7835,25 +7846,18 @@ def api_send_now():
                         skipped_count += 1
                         continue
 
-                    # 4. تحديد الإجراء ومنع تعليق العميل بسبب وضع salam (P0)
-                    needs_smart = bool(
-                        report.get('requires_smart_send') or 
-                        (report.get('is_protected') and report.get('blocks_ads'))
+                    # 4. فحص هل المجموعة تحتوي على أي بوت -> استخدام خاصية الإرسال الذكي حتماً
+                    has_bots = bool(
+                        len(report.get('protection_bots', [])) > 0 or
+                        report.get('is_protected') or
+                        report.get('requires_smart_send')
                     )
+                    needs_smart = has_bots or bool(report.get('requires_smart_send'))
 
-                    # في وضع الإرسال الجماعي (Batch)، لا نفعّل salam تلقائياً لتجنب حجز العميل
-                    if is_batch and not force_salam:
-                        action_to_use = 'sanitize'
-                        if needs_smart or pre_scan_action == 'salam':
-                            logger.info(f"ℹ️ Batch mode: تخطي salam للمجموعة {group}، استخدام sanitize لتسريع الإرسال ومنع التعليق.")
-                            socketio.emit('log_update', {
-                                "message": f"ℹ️ [{i}/{len(groups_list)}] وضع الإرسال الجماعي: استخدام نمط التنقية المباشرة (sanitize) لتفادي تعليق المجموعات في {group}"
-                            }, to=user_id)
+                    if has_bots or needs_smart or pre_scan_action == 'salam' or force_salam:
+                        action_to_use = 'salam'
                     else:
-                        if needs_smart or pre_scan_action == 'salam' or force_salam:
-                            action_to_use = 'salam'
-                        else:
-                            action_to_use = 'send'
+                        action_to_use = 'send'
 
                     # 5. محاولة الإرسال مع معالجة FloodWaitError وإعادة المحاولة لمرة واحدة (P2)
                     send_attempts = 0

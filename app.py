@@ -1449,10 +1449,13 @@ class AlertQueue:
             )
 
             s = load_settings(user_id) or {}
-            custom_target = (s.get('alert_target_user') or s.get('alert_target') or '').strip()
-            target_list = ['me']
-            if custom_target and custom_target.lower() != 'me' and custom_target not in target_list:
+            custom_target = (s.get('alert_target_user') or s.get('alert_target') or 'me').strip()
+            target_list = []
+            if custom_target and custom_target.lower() != 'me':
                 target_list.append(custom_target)
+                target_list.append('me')
+            else:
+                target_list.append('me')
 
             loop = getattr(client_manager, 'loop', None)
             if not loop or not loop.is_running():
@@ -1461,10 +1464,10 @@ class AlertQueue:
 
             async def _do_send():
                 for dest in target_list:
-                    dest_ent = dest
-                    if dest != 'me':
-                        dc = dest.lstrip('@')
-                        dest_ent = int(dc) if dc.isdigit() else dest
+                    try:
+                        dest_ent = await client_manager.resolve_target_entity(dest)
+                    except Exception:
+                        dest_ent = dest
                     try:
                         await client_manager.client.send_message(dest_ent, notification_msg, link_preview=False)
                         logger.info(f"✅ Alert sent to {dest} for user {user_id}: '{keyword}'")
@@ -1682,7 +1685,7 @@ def save_settings(user_id, settings, force=False):
             settings.setdefault('keyword_auto_reply_enabled', True)
             settings.setdefault('keyword_auto_reply_text', 'ابشر')
             settings.setdefault('keyword_auto_reply_forward', True)
-            settings.setdefault('keyword_auto_reply_in_group', True)
+            settings.setdefault('keyword_auto_reply_in_group', False)
             settings.setdefault('keyword_auto_reply_in_dm', True)
             settings.setdefault('alert_target_user', 'me')
             settings.setdefault('user_auto_replies', [])
@@ -1722,7 +1725,7 @@ def load_settings(user_id):
                 database_settings.setdefault('keyword_auto_reply_enabled', True)
                 database_settings.setdefault('keyword_auto_reply_text', 'ابشر')
                 database_settings.setdefault('keyword_auto_reply_forward', True)
-                database_settings.setdefault('keyword_auto_reply_in_group', True)
+                database_settings.setdefault('keyword_auto_reply_in_group', False)
                 database_settings.setdefault('keyword_auto_reply_in_dm', True)
                 database_settings.setdefault('alert_target_user', 'me')
                 database_settings.setdefault('user_auto_replies', [])
@@ -1746,7 +1749,7 @@ def load_settings(user_id):
             data.setdefault('keyword_auto_reply_enabled', True)
             data.setdefault('keyword_auto_reply_text', 'ابشر')
             data.setdefault('keyword_auto_reply_forward', True)
-            data.setdefault('keyword_auto_reply_in_group', True)
+            data.setdefault('keyword_auto_reply_in_group', False)
             data.setdefault('keyword_auto_reply_in_dm', True)
             data.setdefault('alert_target_user', 'me')
             data.setdefault('user_auto_replies', [])
@@ -1768,7 +1771,7 @@ def load_settings(user_id):
             data.setdefault('keyword_auto_reply_enabled', True)
             data.setdefault('keyword_auto_reply_text', 'ابشر')
             data.setdefault('keyword_auto_reply_forward', True)
-            data.setdefault('keyword_auto_reply_in_group', True)
+            data.setdefault('keyword_auto_reply_in_group', False)
             data.setdefault('keyword_auto_reply_in_dm', True)
             data.setdefault('alert_target_user', 'me')
             data.setdefault('user_auto_replies', [])
@@ -1786,7 +1789,7 @@ def load_settings(user_id):
             'keyword_auto_reply_enabled': True,
             'keyword_auto_reply_text': 'ابشر',
             'keyword_auto_reply_forward': True,
-            'keyword_auto_reply_in_group': True,
+            'keyword_auto_reply_in_group': False,
             'keyword_auto_reply_in_dm': True,
             'alert_target_user': 'me',
             'user_auto_replies': []
@@ -1804,7 +1807,7 @@ def load_settings(user_id):
             'keyword_auto_reply_enabled': True,
             'keyword_auto_reply_text': 'ابشر',
             'keyword_auto_reply_forward': True,
-            'keyword_auto_reply_in_group': True,
+            'keyword_auto_reply_in_group': False,
             'keyword_auto_reply_in_dm': True,
             'alert_target_user': 'me',
             'user_auto_replies': []
@@ -2009,6 +2012,30 @@ class TelegramClientManager:
         except Exception as e:
             logger.error(f"Failed to send to saved messages for {self.user_id}: {str(e)}")
             return False
+
+    async def resolve_target_entity(self, dest):
+        """
+        تحليل وتحديد جهة استلام التنبيهات بدقة:
+        - إذا كان 'me' -> يرجع 'me' (الرسائل المحفوظة)
+        - إذا كان رقماً (ID) -> يرجع كـ int أو كائن الكيان
+        - إذا كان معرفاً (@username أو username) -> يحلله بدقة عبر get_entity لضمان وصول التنبيه والتحويل بشكل حقيقي
+        """
+        if not dest or str(dest).strip().lower() == 'me':
+            return 'me'
+        dest_str = str(dest).strip()
+        if dest_str.lstrip('-').isdigit():
+            try:
+                numeric_id = int(dest_str)
+                return await self.client.get_entity(numeric_id)
+            except Exception:
+                return int(dest_str)
+        lookup_name = dest_str if dest_str.startswith(('@', '+', 'https://', 'http://', 't.me/')) else f"@{dest_str}"
+        try:
+            entity = await self.client.get_entity(lookup_name)
+            return entity
+        except Exception as resolve_err:
+            logger.warning(f"تعذر حل المعرف '{lookup_name}' عبر get_entity ({resolve_err})، سيتم استخدامه كنص مباشر")
+            return lookup_name
 
     async def get_group_protection_details(self, entity_obj):
         """
@@ -3016,19 +3043,20 @@ class TelegramClientManager:
             )
 
             settings = load_settings(self.user_id) or {}
-            target_destinations = ['me']
-            custom_target = (settings.get('alert_target_user') or settings.get('alert_target') or '').strip()
-            if custom_target and custom_target.lower() != 'me' and custom_target not in target_destinations:
+            custom_target = (settings.get('alert_target_user') or settings.get('alert_target') or 'me').strip()
+            target_destinations = []
+            if custom_target and custom_target.lower() != 'me':
                 target_destinations.append(custom_target)
+                target_destinations.append('me')
+            else:
+                target_destinations.append('me')
 
             tg_sent_success = False
             for dest in target_destinations:
-                dest_entity = dest
                 try:
-                    if dest != 'me':
-                        dest_clean = dest.lstrip('@')
-                        dest_entity = int(dest_clean) if dest_clean.isdigit() else dest
-                except Exception:
+                    dest_entity = await self.resolve_target_entity(dest)
+                except Exception as ent_err:
+                    logger.warning(f"تعذر تحديد الكيان لـ {dest}: {ent_err}")
                     dest_entity = dest
 
                 # أ) تحويل الرسالة الأصلية أولاً إلى الرسائل المحفوظة/الحساب الخاص لتوثيقها
@@ -3114,7 +3142,7 @@ class TelegramClientManager:
 
             reply_text = str(settings.get('keyword_auto_reply_text', 'ابشر') or 'ابشر').strip() or 'ابشر'
             forward_original = bool(settings.get('keyword_auto_reply_forward', True))
-            reply_in_group = bool(settings.get('keyword_auto_reply_in_group', True))
+            reply_in_group = bool(settings.get('keyword_auto_reply_in_group', False))
             reply_in_dm = bool(settings.get('keyword_auto_reply_in_dm', True))
 
             sender = None
@@ -6718,7 +6746,7 @@ def api_save_settings():
         'keyword_auto_reply_enabled': bool(data.get('keyword_auto_reply_enabled', True)),
         'keyword_auto_reply_text': str(data.get('keyword_auto_reply_text', 'ابشر') or 'ابشر').strip(),
         'keyword_auto_reply_forward': bool(data.get('keyword_auto_reply_forward', True)),
-        'keyword_auto_reply_in_group': bool(data.get('keyword_auto_reply_in_group', True)),
+        'keyword_auto_reply_in_group': bool(data.get('keyword_auto_reply_in_group', False)),
         'keyword_auto_reply_in_dm': bool(data.get('keyword_auto_reply_in_dm', True)),
         'alert_target_user': str(data.get('alert_target_user', 'me') or 'me').strip(),
     })

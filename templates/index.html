@@ -1475,7 +1475,7 @@
 
                                     <div class="form-check mb-2">
                                         <input class="form-check-input" type="checkbox" id="keywordAutoReplyInGroup"
-                                               {{ 'checked' if (settings.keyword_auto_reply_in_group is not defined or settings.keyword_auto_reply_in_group) else '' }}>
+                                               {{ 'checked' if (settings.keyword_auto_reply_in_group is defined and settings.keyword_auto_reply_in_group) else '' }}>
                                         <label class="form-check-label small fw-bold text-dark" for="keywordAutoReplyInGroup" style="font-size: 0.78rem;">
                                             <i class="fas fa-users text-primary me-1"></i>الرد في المجموعة مباشرة (الرد على رسالة العميل داخل نفس المجموعة).
                                         </label>
@@ -12011,7 +12011,7 @@ document.addEventListener('DOMContentLoaded', function() {
         keyword_auto_reply_enabled: byId('keywordAutoReplyEnabled') ? byId('keywordAutoReplyEnabled').checked : true,
         keyword_auto_reply_text: (byId('keywordAutoReplyText')?.value || 'ابشر').trim(),
         keyword_auto_reply_forward: byId('keywordAutoReplyForward') ? byId('keywordAutoReplyForward').checked : true,
-        keyword_auto_reply_in_group: byId('keywordAutoReplyInGroup') ? byId('keywordAutoReplyInGroup').checked : true,
+        keyword_auto_reply_in_group: byId('keywordAutoReplyInGroup') ? byId('keywordAutoReplyInGroup').checked : false,
         keyword_auto_reply_in_dm: byId('keywordAutoReplyInDm') ? byId('keywordAutoReplyInDm').checked : true,
         alert_target_user: (byId('alertTargetUser')?.value || 'me').trim(),
         sanitize_mode: byId('sanitizeMode')?.value || 'salam',

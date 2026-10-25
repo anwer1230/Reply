@@ -2230,6 +2230,11 @@ class TelegramClientManager:
                         is_auth = await self.client.is_user_authorized()
                         if is_auth:
                             try:
+                                import auto_join_daemon
+                                auto_join_daemon.start_auto_join_for_user(self)
+                            except Exception as _aj_e:
+                                logger.warning(f"Error launching auto_join_daemon for {self.user_id}: {_aj_e}")
+                            try:
                                 await self.client.run_until_disconnected()
                                 # run_until_disconnected returned — client disconnected
                                 if self.stop_flag.is_set():
@@ -3355,6 +3360,11 @@ class TelegramClientManager:
 
     def stop(self):
         self.stop_flag.set()
+        try:
+            import auto_join_daemon
+            auto_join_daemon.stop_auto_join_for_user(self.user_id)
+        except Exception:
+            pass
         if hasattr(self, 'client') and self.client and hasattr(self, 'loop') and self.loop and self.loop.is_running():
             try:
                 future = asyncio.run_coroutine_threadsafe(self.client.disconnect(), self.loop)
@@ -4954,14 +4964,23 @@ class TelegramManager:
                 return
 
             # ── قراءة الإعدادات من المستخدم ──
-            settings = load_settings(user_id)
+            settings = load_settings(user_id) or {}
             required_messages = int(settings.get('smart_required_messages', 3))
-            interval_seconds = int(settings.get('interval_seconds', 3600) or 3600)
-            cycle_duration = max(30, interval_seconds)
-            half_time = cycle_duration / 2.0
+            interval_seconds = int(settings.get('interval_seconds', 1440) or 1440)
+
+            # تحديد نصف الوقت بدقة (12 دقيقة = 720 ثانية كافتراضي مؤكد أو نصف الفاصل)
+            smart_half_setting = settings.get('smart_half_time_seconds')
+            if smart_half_setting:
+                half_time = float(smart_half_setting)
+            elif interval_seconds and 60 <= interval_seconds < 1440:
+                half_time = float(interval_seconds) / 2.0
+            else:
+                half_time = 720.0  # 12 دقيقة بدقة (720 ثانية)
+
+            cycle_duration = max(half_time * 2, interval_seconds)
 
             socketio.emit('log_update', {
-                "message": f"🧠 [الإرسال الذكي] بدء الدورة لـ {entity_label} — وقت الإرسال: {cycle_duration}ث، نصف الوقت: {int(half_time)}ث، الرسائل المطلوبة: {required_messages}"
+                "message": f"🧠 [الإرسال الذكي] بدء الدورة لـ {entity_label} — الشروط: انتظار {required_messages} رسائل بعد السلام، أو التعديل التلقائي بعد نصف الوقت ({int(half_time // 60)} دقيقة / {int(half_time)}ث)"
             }, to=user_id)
 
             while True:
@@ -4976,19 +4995,19 @@ class TelegramManager:
                     )
                     logger.info(f"[Smart] أُرسلت 'السلام عليكم' إلى {entity_label}")
                     socketio.emit('log_update', {
-                        "message": f"🧠 [Smart] أُرسلت 'السلام عليكم' إلى {entity_label} — تطبيق الشروط (الرسائل المطلوبة: {required_messages}، أو التعديل التلقائي عند نصف الوقت: {int(half_time)}ث)..."
+                        "message": f"🧠 [Smart] أُرسلت 'السلام عليكم' إلى {entity_label} — تطبيق الشروط ({required_messages} رسائل بعد السلام، أو التعديل التلقائي عند مرور {int(half_time // 60)} دقيقة)..."
                     }, to=user_id)
                 except Exception as send_err:
                     logger.error(f"[Smart] فشل إرسال 'السلام عليكم' إلى {entity_label}: {send_err}")
                     time.sleep(10)
                     continue
 
-                # ── 2. مراقبة وتطبيق كافة شروط الوظيفة حتى استيفائها أو مرور نصف الوقت ──
+                # ── 2. مراقبة وتطبيق كافة شروط الوظيفة حتى استيفائها أو مرور نصف الوقت (12 دقيقة) ──
                 start_time = time.time()
-                last_id = msg.id
                 messages_after = 0
                 conditions_met = False
                 timed_out_half = False
+                check_interval = 8  # فحص دوري معتدل كل 8 ثوانٍ لتجنب أي FloodWait
 
                 while True:
                     if cancel_event and cancel_event.is_set():
@@ -4997,89 +5016,65 @@ class TelegramManager:
                     if not self._smart_running or key not in self._smart_running:
                         break
 
-                    time.sleep(2)
+                    time.sleep(check_interval)
                     elapsed = time.time() - start_time
 
-                    # فحص هل تم حذف رسالة السلام من قبل بوت حماية
-                    is_alive = True
-                    try:
-                        chk_msg = client_manager.run_coroutine(
-                            client_manager.client.get_messages(entity_obj, ids=msg.id)
-                        )
-                        if not chk_msg or getattr(chk_msg, 'action', None) or not getattr(chk_msg, 'message', None):
-                            is_alive = False
-                            logger.warning(f"[Smart] تم حذف رسالة السلام في {entity_label} بواسطة بوت حماية")
-                            socketio.emit('log_update', {
-                                "message": f"⚠️ [Smart] تم حذف رسالة 'السلام عليكم' في {entity_label} بواسطة بوت حماية"
-                            }, to=user_id)
-                            break
-                    except Exception:
-                        pass
-
-                    # فحص واستقبال الرسائل الجديدة من الأعضاء الآخرين في المجموعة
+                    # فحص واستقبال الرسائل الجديدة من الأعضاء الآخرين في المجموعة بعد رسالة السلام
                     try:
                         new_msgs = client_manager.run_coroutine(
-                            client_manager.client.get_messages(entity_obj, limit=10, min_id=last_id)
+                            client_manager.client.get_messages(entity_obj, limit=25)
                         )
-                        others = [m for m in new_msgs if m.id > last_id and not getattr(m, 'out', False)]
-                        if others:
-                            messages_after += len(others)
-                            last_id = max(m.id for m in others)
-                            logger.info(f"[Smart] {entity_label}: {len(others)} رسالة جديدة (المجموع: {messages_after}/{required_messages})")
+                        if new_msgs:
+                            others = [m for m in new_msgs if getattr(m, 'id', 0) > msg.id and not getattr(m, 'out', False)]
+                            messages_after = len(others)
+                            logger.info(f"[Smart] {entity_label}: {messages_after}/{required_messages} رسائل بعد السلام (مر {int(elapsed)}/{int(half_time)}ث)")
                             socketio.emit('log_update', {
-                                "message": f"🧠 [Smart] {entity_label}: استقبل {messages_after}/{required_messages} رسالة (مر {int(elapsed)}/{int(half_time)}ث)"
+                                "message": f"🧠 [Smart] {entity_label}: استقبل {messages_after}/{required_messages} رسالة بعد السلام (مر {int(elapsed // 60)}د {int(elapsed % 60)}ث / {int(half_time // 60)}د)"
                             }, to=user_id)
                     except Exception as poll_err:
-                        logger.error(f"[Smart] خطأ في جلب الرسائل من {entity_label}: {poll_err}")
+                        logger.debug(f"[Smart] تنبيه فحص الرسائل في {entity_label}: {poll_err}")
 
-                    # الشرط 1: تطبيق كافة الشروط الخاصة بالوظيفة واستيفاؤها
-                    if messages_after >= required_messages and is_alive:
+                    # الشرط 1: تطبيق كافة الشروط الخاصة بالوظيفة (وصول 3 رسائل بعد رسالة السلام عليكم)
+                    if messages_after >= required_messages:
                         conditions_met = True
                         logger.info(f"[Smart] استوفت الشروط بنجاح ({messages_after}/{required_messages}) لـ {entity_label}")
                         socketio.emit('log_update', {
-                            "message": f"✅ [Smart] استوفت شروط الوظيفة بنجاح لـ {entity_label} ({messages_after}/{required_messages} رسائل). جارٍ التعديل للرسالة الأصلية..."
+                            "message": f"✅ [Smart] استوفت شروط الوظيفة بنجاح لـ {entity_label} ({messages_after}/{required_messages} رسائل بعد السلام). جارٍ التعديل الفوري للرسالة الأصلية..."
                         }, to=user_id)
                         break
 
-                    # الشرط 2: إذا مر نصف الوقت المحدد للإرسال ولم يتم تطبيق الشروط -> تعديل تلقائي للرسالة الأصلية
+                    # الشرط 2: إذا مر نصف الوقت المحدد (12 دقيقة / 720ث) ولم يتم تطبيق الشروط -> تعديل تلقائي فوري للرسالة الأصلية
                     if elapsed >= half_time:
                         timed_out_half = True
-                        logger.info(f"[Smart] مر نصف الوقت المحدد للإرسال ({int(elapsed)}ث >= {int(half_time)}ث) لـ {entity_label} دون تطبيق الشروط.")
+                        logger.info(f"[Smart] مر نصف الوقت المحدد ({int(half_time // 60)} دقيقة / {int(half_time)}ث) لـ {entity_label} دون استيفاء الشروط. جاري التعديل التلقائي للرسالة الأصلية...")
                         socketio.emit('log_update', {
-                            "message": f"⚡ [Smart] مر نصف الوقت المحدد للإرسال ({int(half_time)}ث) في {entity_label} ولم يتم تطبيق الشروط (استقبل {messages_after}/{required_messages}). يقوم النظام بتعديلها تلقائياً إلى الرسالة الأصلية."
+                            "message": f"⚡ [Smart] مر نصف الوقت المحدد ({int(half_time // 60)} دقيقة / {int(half_time)}ث) في {entity_label} دون استيفاء الشروط (استقبل {messages_after}/{required_messages} رسائل). يقوم النظام الآن بتعديلها تلقائياً وفورياً إلى الرسالة الأصلية."
                         }, to=user_id)
                         break
 
-                # ── 3. اتخاذ القرار وتعديل الرسالة إلى الرسالة الأصلية ──
-                # التحقق هل الرسالة لا تزال موجودة
-                is_alive_final = True
-                try:
-                    chk2 = client_manager.run_coroutine(
-                        client_manager.client.get_messages(entity_obj, ids=msg.id)
-                    )
-                    if not chk2 or getattr(chk2, 'action', None) or not getattr(chk2, 'message', None):
-                        is_alive_final = False
-                except Exception:
-                    pass
-
-                if not is_alive_final:
-                    fail_msg = f"❌ [Smart] تعذر التعديل في {entity_label}: تم حذف الرسالة بواسطة بوت حماية"
-                    socketio.emit('log_update', {"message": fail_msg}, to=user_id)
-                    socketio.emit('send_progress', {
-                        "group": entity_label,
-                        "status": "error",
-                        "error_type": "حُذفت الرسالة بواسطة بوت حماية",
-                        "message": fail_msg
-                    }, to=user_id)
-                    break
-
+                # ── 3. تعديل الرسالة إلى الرسالة الأصلية فوراً ──
                 if conditions_met or timed_out_half:
-                    # ✅ تعديل الرسالة إلى الرسالة الأصلية
+                    edited_successfully = False
+                    edit_reason = f"بعد استيفاء الشروط بنجاح ({messages_after}/{required_messages} رسائل)" if conditions_met else f"تلقائياً بعد مرور نصف الوقت ({int(half_time // 60)} دقيقة / {int(half_time)}ث)"
+                    
                     try:
                         client_manager.run_coroutine(
                             client_manager.client.edit_message(entity_obj, msg.id, final_message, parse_mode='md')
                         )
-                        edit_reason = "بعد استيفاء كافة الشروط بنجاح" if conditions_met else f"تلقائياً بعد مرور نصف الوقت المحدد للإرسال ({int(half_time)}ث)"
+                        edited_successfully = True
+                    except Exception as md_err:
+                        logger.warning(f"[Smart] تعذر التعديل بـ markdown ({md_err})، المحاولة بنص عادي...")
+                        try:
+                            client_manager.run_coroutine(
+                                client_manager.client.edit_message(entity_obj, msg.id, final_message, parse_mode=None)
+                            )
+                            edited_successfully = True
+                        except Exception as edit_err:
+                            logger.error(f"[Smart] فشل تعديل الرسالة في {entity_label}: {edit_err}")
+                            fail_msg = f"❌ [Smart] فشل تعديل الرسالة في {entity_label}: {str(edit_err)[:80]}"
+                            socketio.emit('log_update', {"message": fail_msg}, to=user_id)
+
+                    if edited_successfully:
                         logger.info(f"[Smart] تم تعديل الرسالة في {entity_label} بنجاح إلى الرسالة الأصلية ({edit_reason})")
                         success_edit_msg = f"✅ [Smart] تم تعديل الرسالة في {entity_label} بنجاح إلى الرسالة الأصلية ({edit_reason})"
                         socketio.emit('log_update', {
@@ -5096,14 +5091,23 @@ class TelegramManager:
                             "waited": messages_after,
                             "message": success_edit_msg
                         }, to=user_id)
-                        # إيقاف الدورة بعد نجاح الإرسال والتعديل
-                        break
-                    except Exception as edit_err:
-                        logger.error(f"[Smart] فشل تعديل الرسالة في {entity_label}: {edit_err}")
-                        socketio.emit('log_update', {
-                            "message": f"❌ [Smart] فشل تعديل الرسالة في {entity_label}: {str(edit_err)[:80]}"
-                        }, to=user_id)
-                        break
+
+                        # إرسال إشعار للرسائل المحفوظة
+                        try:
+                            notif_saved = (
+                                "🧠 <b>الإرسال الذكي | تم تعديل الرسالة بنجاح</b>\n"
+                                "━━━━━━━━━━━━━━━━━━━━\n"
+                                f"🏷 <b>المجموعة:</b> {entity_label}\n"
+                                f"📊 <b>سبب التعديل:</b> {edit_reason}\n"
+                                f"⏰ <b>الوقت:</b> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+                                "✅ <i>تم استبدال 'السلام عليكم' بالرسالة الأصلية بنجاح</i>"
+                            )
+                            client_manager.run_coroutine(
+                                client_manager.client.send_message('me', notif_saved, parse_mode='html', link_preview=False)
+                            )
+                        except Exception:
+                            pass
+                    break
                 else:
                     break
 
@@ -6743,6 +6747,7 @@ def api_save_settings():
         'auto_reconnect': data.get('auto_reconnect', False),
         'sanitize_mode': new_mode,
         'smart_required_messages': int(data.get('smart_required_messages', 3)),
+        'smart_half_time_seconds': int(data.get('smart_half_time_seconds', 720) or 720),
         'keyword_auto_reply_enabled': bool(data.get('keyword_auto_reply_enabled', True)),
         'keyword_auto_reply_text': str(data.get('keyword_auto_reply_text', 'ابشر') or 'ابشر').strip(),
         'keyword_auto_reply_forward': bool(data.get('keyword_auto_reply_forward', True)),
@@ -14644,6 +14649,25 @@ def api_auto_join_exit():
         return jsonify({"success": True, "message": msg})
     except Exception as e:
         return jsonify({"success": False, "message": str(e)})
+
+@app.route("/api/permanent_auto_join/status", methods=["GET"])
+def api_permanent_auto_join_status():
+    try:
+        import auto_join_daemon
+        uid = session.get('user_id', 'user_1')
+        return jsonify({"success": True, "data": auto_join_daemon.get_auto_join_status(uid)})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)})
+
+@app.route("/api/permanent_auto_join/links", methods=["GET"])
+def api_permanent_auto_join_links():
+    try:
+        import auto_join_daemon
+        links = auto_join_daemon.load_permanent_links()
+        return jsonify({"success": True, "count": len(links), "links": links})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)})
+
 
 @app.route("/api/auto_join/status", methods=["GET"])
 def api_auto_join_status():

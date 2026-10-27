@@ -133,7 +133,7 @@ def call_gemini_nlu(transcript: str, active_step: str, context: dict) -> dict:
 
 قم بتحليل النص وتحديد النية والبيانات بدقة، وأجب بصيغة JSON حصراً بهذا الهيكل:
 {{
-  "intent": "login | verify_code | verify_password | set_message | set_interval | set_target | save_settings | start_broadcast | stop_broadcast | switch_account | get_status | unknown",
+  "intent": "login | verify_code | verify_password | set_message | set_interval | set_target | save_settings | start_broadcast | stop_broadcast | logout_account | switch_account | get_status | unknown",
   "spoken_response": "جملة عربية قصيرة وواضحة ومباشرة ينطقها المساعد للمستخدم لتأكيد الإجراء",
   "data": {{
     "phone": "رقم الهاتف بصيغة دولية إن وجد",
@@ -181,7 +181,7 @@ def call_groq_nlu(transcript: str, active_step: str, context: dict) -> dict:
         prompt = f"""حلل أمر صوتي عربي لمنصة تيليجرام: "{transcript}". الخطوة الحالية: {active_step}.
 أرجع JSON فقط:
 {{
-  "intent": "login | verify_code | verify_password | set_message | set_interval | set_target | save_settings | start_broadcast | stop_broadcast | switch_account | get_status | unknown",
+  "intent": "login | verify_code | verify_password | set_message | set_interval | set_target | save_settings | start_broadcast | stop_broadcast | logout_account | switch_account | get_status | unknown",
   "spoken_response": "رد صوتي باللغة العربية",
   "data": {{ "phone": "", "code": "", "password": "", "message": "", "interval_seconds": 0, "target_user_id": "" }}
 }}"""
@@ -342,11 +342,43 @@ def parse_local_voice_intent(transcript: str, active_step: str = 'idle', context
         }
 
     # 9. إيقاف الإرسال أو المراقبة
-    if any(k in norm for k in ['اوقف الارسال', 'وقف الارسال', 'ايقاف الارسال', 'اوقف النشر', 'وقف النشر', 'اوقف المراقبه', 'وقف المراقبه', 'ايقاف مؤقت', 'توقف']):
+    if any(k in norm for k in [
+        'اوقف عمليه الارسال', 'اوقف عملية الارسال', 'وقف عمليه الارسال', 'وقف عملية الارسال',
+        'ايقاف عمليه الارسال', 'ايقاف عملية الارسال', 'اوقف الارسال', 'وقف الارسال', 'ايقاف الارسال',
+        'توقف عن الارسال', 'توقف عن النشر', 'اوقف النشر', 'وقف النشر', 'ايقاف النشر',
+        'اوقف المراقبه', 'وقف المراقبه', 'ايقاف مؤقت', 'توقف'
+    ]) or (('اوقف' in norm or 'وقف' in norm or 'ايقاف' in norm) and ('ارسال' in norm or 'نشر' in norm)):
         return {
             "intent": "stop_broadcast",
-            "spoken_response": "تم إيقاف عملية الإرسال والمراقبة بنجاح.",
+            "spoken_response": "تم إيقاف الإرسال",
             "data": {}
+        }
+
+    # 9.2 تسجيل الخروج من حساب (بالاسم أو الرقم)
+    if any(k in norm for k in ['سجل الخروج', 'سجل خروج', 'تسجيل الخروج', 'تسجيل خروج', 'اخرج من حساب', 'الخروج من حساب', 'خروج من حساب', 'سجل خروجك', 'سجل الخروج من الحساب', 'سجل خروج من الحساب']):
+        target_uid = None
+        account_disp = ""
+        ord_names = ['الاول', 'الثاني', 'الثالث', 'الرابع', 'الخامس']
+        ar_digits = ['واحد', 'اثنين', 'ثلاثه', 'اربعه', 'خمسه']
+        for idx in range(1, 6):
+            if f"حساب {idx}" in norm or f"حساب رقم {idx}" in norm or f"رقم {idx}" in norm or ord_names[idx-1] in norm or f"حساب {ar_digits[idx-1]}" in norm or (str(idx) in norm and 'حساب' in norm):
+                target_uid = f"user_{idx}"
+                account_disp = f"حساب {idx}"
+                break
+        if not target_uid:
+            if 'لميس' in norm:
+                target_uid = 'user_1'
+                account_disp = 'لميس'
+            elif 'انور' in norm:
+                target_uid = 'user_2'
+                account_disp = 'أنور'
+        if not target_uid:
+            target_uid = context.get('current_user') or 'user_1'
+            account_disp = target_uid
+        return {
+            "intent": "logout_account",
+            "spoken_response": f"تم تسجيل الخروج من {account_disp}",
+            "data": {"target_user_id": target_uid, "account_name": account_disp}
         }
 
     # 10. الاستعلام عن الحالة والإحصائيات
@@ -498,8 +530,58 @@ def register_voice_assistant_routes(app, telegram_manager, USERS, PREDEFINED_USE
 
                 # ط. إيقاف الإرسال
                 elif intent == "stop_broadcast":
-                    spoken_response = "تم إيقاف الإرسال والمراقبة بنجاح."
-                    execution_result["action"] = "trigger_stop_monitoring"
+                    try:
+                        import app as _app_module
+                        with _app_module.BATCH_STATE_LOCK:
+                            if user_id in _app_module.BATCH_PAUSE_EVENTS:
+                                _app_module.BATCH_PAUSE_EVENTS[user_id].set()
+                            if user_id in _app_module.BATCH_CANCEL_EVENTS:
+                                _app_module.BATCH_CANCEL_EVENTS[user_id].set()
+                        _app_module.socketio.emit('send_progress', {"status": "paused", "message": "⏸️ تم إيقاف الإرسال"}, to=user_id)
+                        _app_module.socketio.emit('log_update', {"message": "🛑 تم إيقاف الإرسال بأمر صوتي"}, to=user_id)
+                    except Exception as _e_pause:
+                        logger.warning(f"Could not trigger pause event: {_e_pause}")
+                    spoken_response = "تم إيقاف الإرسال"
+                    execution_result["action"] = "trigger_stop_send"
+
+                # ل. تسجيل الخروج من حساب بالصوت
+                elif intent == "logout_account":
+                    t_uid = intent_data.get("target_user_id") or user_id
+                    t_name = intent_data.get("account_name") or t_uid
+                    try:
+                        import app as _app_mod
+                        with _app_mod.USERS_LOCK:
+                            if t_uid in _app_mod.USERS:
+                                cm = _app_mod.USERS[t_uid].get('client_manager')
+                                if cm and hasattr(cm, 'client') and cm.client:
+                                    try:
+                                        cm.client.disconnect()
+                                    except Exception:
+                                        pass
+                                del _app_mod.USERS[t_uid]
+                        s_file = os.path.join(_app_mod.SESSIONS_DIR, f"{t_uid}_session.session")
+                        if os.path.exists(s_file):
+                            try:
+                                os.remove(s_file)
+                            except Exception:
+                                pass
+                        st_file = os.path.join(_app_mod.SESSIONS_DIR, f"{t_uid}.json")
+                        if os.path.exists(st_file):
+                            try:
+                                st = _app_mod.load_settings(t_uid)
+                                st.update({'phone': '', 'authenticated': False, 'connected': False})
+                                _app_mod.save_settings(t_uid, st)
+                            except Exception:
+                                pass
+                        _app_mod.socketio.emit('session_revoked', {"user_id": t_uid, "reason": f"تم تسجيل الخروج من {t_name}"})
+                        _app_mod.socketio.emit('account_updated', {"user_id": t_uid, "authenticated": False})
+                        _app_mod.socketio.emit('log_update', {"message": f"🚪 تم تسجيل الخروج من {t_name} بأمر صوتي"})
+                    except Exception as _e_logout:
+                        logger.error(f"Error logging out {t_uid} via voice: {_e_logout}")
+                    spoken_response = f"تم تسجيل الخروج من {t_name}"
+                    execution_result["action"] = "logout_account"
+                    execution_result["target_user_id"] = t_uid
+                    execution_result["account_name"] = t_name
 
                 # ي. الاستعلام عن الحالة
                 elif intent == "get_status":

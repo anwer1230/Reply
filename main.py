@@ -5,6 +5,11 @@ import subprocess
 import signal
 import logging
 
+# ضمان توفر مسار vendor الدائم للحزم حتى عند إعادة إنشاء الحاوية
+_vendor_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "vendor")
+if os.path.isdir(_vendor_dir) and _vendor_dir not in sys.path:
+    sys.path.insert(0, _vendor_dir)
+
 # التأكد التلقائي من توفر الحزم الأساسية لمنع أي عطل عند إعادة تشغيل البيئة
 try:
     import requests

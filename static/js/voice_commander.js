@@ -251,6 +251,14 @@
                 }
 
                 // ----------------------------------------------------
+                // 1.5. أمر تسجيل الخروج من حساب (بالاسم أو الرقم)
+                // ----------------------------------------------------
+                if (text.includes('سجل الخروج') || text.includes('سجل خروج') || text.includes('تسجيل الخروج') || text.includes('تسجيل خروج') || text.includes('اخرج من حساب') || text.includes('الخروج من حساب') || text.includes('خروج من حساب') || text.includes('سجل خروجك') || text.includes('تسجيل خروجي')) {
+                    await this.cmdLogoutAccount(text);
+                    return;
+                }
+
+                // ----------------------------------------------------
                 // 2. أمر بدء تسجيل الدخول بالاسم أو الرقم
                 // ----------------------------------------------------
                 if (text.includes('سجل') || text.includes('دخول') || text.includes('تسجيل الدخول')) {
@@ -397,7 +405,20 @@
                     return;
                 }
 
-                if (text.includes('اوقف الإرسال') || text.includes('أوقف الإرسال') || text.includes('إيقاف الإرسال') || text.includes('ايقاف الارسال') || text.includes('توقف عن الارسال') || text.includes('توقف عن الإرسال')) {
+                if (
+                    text.includes('اوقف عملية الارسال') || text.includes('أوقف عملية الإرسال') ||
+                    text.includes('اوقف عمليه الارسال') || text.includes('أوقف عمليه الإرسال') ||
+                    text.includes('وقف عملية الارسال') || text.includes('وقف عملية الإرسال') ||
+                    text.includes('وقف عمليه الارسال') || text.includes('وقف عمليه الإرسال') ||
+                    text.includes('ايقاف عملية الارسال') || text.includes('إيقاف عملية الإرسال') ||
+                    text.includes('ايقاف عمليه الارسال') || text.includes('إيقاف عمليه الإرسال') ||
+                    text.includes('اوقف الإرسال') || text.includes('أوقف الإرسال') ||
+                    text.includes('اوقف الارسال') || text.includes('أوقف الارسال') ||
+                    text.includes('وقف الإرسال') || text.includes('وقف الارسال') ||
+                    text.includes('إيقاف الإرسال') || text.includes('ايقاف الارسال') ||
+                    text.includes('توقف عن الارسال') || text.includes('توقف عن الإرسال') ||
+                    ((text.includes('اوقف') || text.includes('أوقف') || text.includes('وقف') || text.includes('ايقاف') || text.includes('إيقاف')) && (text.includes('ارسال') || text.includes('إرسال') || text.includes('نشر')))
+                ) {
                     await this.cmdStopBroadcast();
                     return;
                 }
@@ -883,12 +904,79 @@
         }
 
         async cmdStopBroadcast() {
-            this.speak('أمر مؤكد: جارٍ إيقاف مهمة الإرسال فوراً');
-            const stopBtn = document.getElementById('stopSendNowBtn') || document.getElementById('stopBtn');
+            try {
+                await fetch('/api/send_now/pause', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: window.currentActiveUserId || window.currentUser || 'user_1' })
+                });
+            } catch (e) {}
+            const stopBtn = document.getElementById('stopSendNowBtn') || document.getElementById('pauseResumeSendBtn') || document.getElementById('stopBtn');
             if (stopBtn) {
                 this.highlight(stopBtn);
-                stopBtn.click();
+                if (!stopBtn.dataset.state || stopBtn.dataset.state === 'running') {
+                    stopBtn.click();
+                }
             }
+            this.speak('تم إيقاف الإرسال');
+            const transcriptEl = document.getElementById('voiceLiveTranscript');
+            if (transcriptEl) {
+                transcriptEl.innerHTML = '<span style="color:#f59e0b;font-weight:bold;"><i class="fas fa-pause me-1"></i>تم إيقاف الإرسال</span>';
+            }
+        }
+
+        async cmdLogoutAccount(rawText) {
+            let targetUid = null;
+            let targetName = '';
+            const norm = (rawText || '').replace(/[إأآا]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي');
+
+            for (let i = 1; i <= 5; i++) {
+                const words = ['واحد', 'اثنين', 'ثلاثه', 'اربعه', 'خمسه'];
+                const ords = ['الاول', 'الثاني', 'الثالث', 'الرابع', 'الخامس'];
+                if (norm.includes(`حساب ${i}`) || norm.includes(`حساب رقم ${i}`) || norm.includes(`رقم ${i}`) || norm.includes(ords[i-1]) || norm.includes(`حساب ${words[i-1]}`) || (norm.includes(`${i}`) && norm.includes('حساب'))) {
+                    targetUid = `user_${i}`;
+                    targetName = `حساب ${i}`;
+                    break;
+                }
+            }
+            if (!targetUid) {
+                if (norm.includes('لميس')) {
+                    targetUid = 'user_1';
+                    targetName = 'حساب لميس';
+                } else if (norm.includes('انور')) {
+                    targetUid = 'user_2';
+                    targetName = 'حساب أنور';
+                }
+            }
+            if (!targetUid) {
+                targetUid = window.currentActiveUserId || window.currentUser || 'user_1';
+                targetName = 'الحساب الحالي';
+            }
+
+            try {
+                await fetch('/api/user_logout', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: targetUid })
+                });
+            } catch (e) {
+                console.warn('Logout API error:', e);
+            }
+
+            const responseText = `تم تسجيل الخروج من ${targetName}`;
+            this.speak(responseText);
+            const transcriptEl = document.getElementById('voiceLiveTranscript');
+            if (transcriptEl) {
+                transcriptEl.innerHTML = `<span style="color:#ef4444;font-weight:bold;"><i class="fas fa-sign-out-alt me-1"></i>${responseText}</span>`;
+            }
+            setTimeout(() => {
+                if (typeof window.fetchAllAccounts === 'function') {
+                    window.fetchAllAccounts();
+                }
+                setTimeout(() => {
+                    window.location.reload();
+                }, 800);
+            }, 1000);
         }
 
         async cmdSelectSendType(type) {

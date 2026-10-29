@@ -45,6 +45,8 @@ import {
   HardDrive,
 } from 'lucide-react';
 import { useTelegram } from '../../context/TelegramContext';
+import { notificationEngine } from '../../services/NotificationEngine';
+import { telegramAudio } from '../../utils/audioNotification';
 import { AccountInstance } from '../../core/messenger/AccountInstance';
 import { TLRPC } from '../../core/TLRPC';
 
@@ -279,6 +281,54 @@ export const MessagesSettingsView: React.FC<SubViewProps> = ({ onBack }) => {
               onChange={(e) => updateSettings({ soundEffects: e.target.checked })}
               className="w-5 h-5 accent-[#5288c1] rounded cursor-pointer"
             />
+          </div>
+
+          {/* Test Sound & In-App Notification */}
+          <div className="p-4 bg-white/5 rounded-2xl mx-3 mb-3 border border-white/5 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Volume2 className="w-4 h-4 text-sky-400" />
+                <span className="text-xs font-semibold text-gray-200">
+                  {isArabic ? 'فحص واختبار الإشعارات' : 'Notification Diagnostics'}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  telegramAudio.playMessageReceived();
+                  notificationEngine.showNotification({
+                    category: 'message',
+                    title: isArabic ? 'مركز سرعة إنجاز' : 'Speed Enjaz Center',
+                    body: isArabic ? '🔔 تجربة: وصول إشعار رسالة جديدة وصوت الاستقبال يعمل بنجاح!' : '🔔 Test: Incoming message notification and sound are working!',
+                  });
+                  showToast(isArabic ? 'تم إرسال إشعار تجريبي وتشغيل الصوت 🔔' : 'Test notification & sound played 🔔', '🔔');
+                }}
+                className="flex-1 py-2 px-3 rounded-xl bg-[#2481cc]/20 hover:bg-[#2481cc]/30 text-sky-400 border border-[#2481cc]/30 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors"
+              >
+                <Volume2 className="w-3.5 h-3.5" />
+                <span>{isArabic ? 'تجربة صوت الإشعار' : 'Test Notification Sound'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={async () => {
+                  const granted = await notificationEngine.requestBrowserPermission();
+                  showToast(
+                    granted
+                      ? (isArabic ? '✅ تم تفعيل إشعارات المتصفح بنجاح' : 'Browser notifications enabled')
+                      : (isArabic ? '⚠️ يرجى السماح بالإشعارات من إعدادات المتصفح' : 'Please allow notifications in browser settings'),
+                    granted ? '🔔' : '⚠️'
+                  );
+                }}
+                className="flex-1 py-2 px-3 rounded-xl bg-white/10 hover:bg-white/15 text-gray-200 border border-white/10 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors"
+              >
+                <Bell className="w-3.5 h-3.5" />
+                <span>{isArabic ? 'إذن إشعارات المتصفح' : 'Allow Push / Alerts'}</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>

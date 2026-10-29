@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import confetti from 'canvas-confetti';
+import { io } from 'socket.io-client';
 import {
   ActiveCall,
   AppSettings,
@@ -1423,6 +1424,53 @@ export const TelegramProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     notificationEngine.setSoundEffectsEnabled(settings.soundEffects);
   }, [settings.soundEffects]);
 
+  // Connect to Socket.IO for global real-time notifications & message delivery
+  useEffect(() => {
+    let socket: any = null;
+    try {
+      socket = io({
+        path: '/socket.io',
+        reconnectionAttempts: 10,
+        reconnectionDelay: 2000,
+      });
+
+      socket.on('keyword_alert', (alert: any) => {
+        notificationEngine.showNotification({
+          category: 'keyword_alert',
+          title: `🎯 تنبيه رصد كلمة: "${alert.keyword}"`,
+          body: `${alert.chatTitle}: ${alert.text}`,
+          chatId: alert.chatId,
+          chatTitle: alert.chatTitle,
+          senderName: alert.senderName,
+        });
+        showToast(`🎯 رصد كلمة [${alert.keyword}] في: ${alert.chatTitle}`, '🔔');
+      });
+
+      socket.on('batch_completed', (data: any) => {
+        const rep = data?.report;
+        if (rep) {
+          notificationEngine.showNotification({
+            category: 'system',
+            title: `📊 اكتمال دفعة الإرسال [${rep.batchId}]`,
+            body: `إجمالي: ${rep.totalGroups} | ناجح: ${rep.successCount} | متخطى: ${rep.skippedCount} | فاشل: ${rep.failCount}`,
+          });
+        }
+      });
+
+      socket.on('telegram_message', (msg: any) => {
+        if (!msg) return;
+        const targetChat = chats.find((c) => String(c.id) === String(msg.chatId));
+        notificationEngine.handleIncoming(msg, targetChat, activeChatId);
+      });
+    } catch (e) {
+      console.warn('[TelegramContext] Socket.IO connection notice:', e);
+    }
+
+    return () => {
+      if (socket) socket.disconnect();
+    };
+  }, [chats, activeChatId]);
+
   // Notification Helpers
   const dismissNotification = (id: string) => {
     notificationEngine.dismissNotification(id);
@@ -1622,6 +1670,10 @@ export const TelegramProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         [activeChatId]: [...currentList, newMessage],
       };
     });
+
+    if (settings.soundEffects !== false) {
+      telegramAudio.playMessageSent();
+    }
 
     setChats((prev) =>
       reorderChatsWithUpdate(prev, activeChatId, {

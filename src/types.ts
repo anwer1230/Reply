@@ -498,7 +498,8 @@ export type NotificationCategory =
   | 'system_security'
   | 'reaction'
   | 'pinned'
-  | 'keyword_alert';
+  | 'keyword_alert'
+  | 'system';
 
 export interface InAppNotification {
   id: string;

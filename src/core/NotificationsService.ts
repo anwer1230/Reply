@@ -3,6 +3,7 @@
  */
 
 import { AutoJoinerTask } from '../types';
+import { notificationEngine } from '../services/NotificationEngine';
 
 export class NotificationsService {
   private static instance: NotificationsService;
@@ -20,13 +21,18 @@ export class NotificationsService {
     return 'fcm_token_device_registered';
   }
 
-  public notify(title: string, body: string): void {
-    if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-      new Notification(title, { body });
-    }
+  public notify(title: string, body: string, chatId?: string): void {
+    notificationEngine.showNotification({
+      title,
+      body,
+      chatId,
+      category: 'message',
+    });
   }
 
-  public handleIncomingMessage(...args: any[]): void {}
+  public handleIncomingMessage(message: any, chat?: any): void {
+    notificationEngine.handleIncoming(message, chat);
+  }
 
   public subscribe(fn: () => void): () => void {
     this.listeners.push(fn);

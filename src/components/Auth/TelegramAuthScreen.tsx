@@ -25,6 +25,7 @@ import { useTelegram } from '../../context/TelegramContext';
 import { loginController, AuthTokensHelper, UserConfig, NotificationCenter } from '../../core/messenger';
 import { SecureSessionStorage } from '../../utils/secureSessionStorage';
 import { COUNTRIES, Country, searchCountries, detectCountryFromPhone } from '../../data/countries';
+import { FIXED_DATABASE_PHONES } from '../Modals/AddAccountModal';
 
 interface TelegramAuthScreenProps {
   isAddingAccount?: boolean;
@@ -50,6 +51,27 @@ export const TelegramAuthScreen: React.FC<TelegramAuthScreenProps> = ({
   const [countrySearch, setCountrySearch] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [keepSignedIn, setKeepSignedIn] = useState(true);
+
+  const [savedPhonesList, setSavedPhonesList] = useState<any[]>(FIXED_DATABASE_PHONES);
+
+  useEffect(() => {
+    fetch('/api/saved_phone_numbers')
+      .then((r) => r.json())
+      .then((data) => {
+        if (data && data.success && Array.isArray(data.phones) && data.phones.length > 0) {
+          const merged = [...FIXED_DATABASE_PHONES];
+          data.phones.forEach((p: any) => {
+            const pNum = p.phone_number || p.phone;
+            const clean = String(pNum).replace(/[^0-9]/g, '');
+            if (!merged.some((m) => m.phone.replace(/[^0-9]/g, '') === clean)) {
+              merged.push({ phone: pNum, label: p.label || p.account_name || 'حساب محفوظ' });
+            }
+          });
+          setSavedPhonesList(merged);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Code Step State
   const [verificationCode, setVerificationCode] = useState(['', '', '', '', '']);
@@ -468,6 +490,44 @@ export const TelegramAuthScreen: React.FC<TelegramAuthScreenProps> = ({
             {/* STEP 1: Phone & Country Input */}
             {authStep === 1 && (
               <form onSubmit={handleSendCode} className="w-full space-y-4">
+                {/* Saved Phones from Database */}
+                <div className="space-y-1.5 text-start">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-medium text-gray-300">
+                      {isArabic ? 'الأرقام المحفوظة في قاعدة البيانات' : 'Saved Database Numbers'}
+                    </label>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#2481cc]/20 text-sky-400 font-mono">
+                      {savedPhonesList.length} {isArabic ? 'أرقام ثابتة' : 'numbers'}
+                    </span>
+                  </div>
+                  <select
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (!val) return;
+                      const detected = detectCountryFromPhone(val);
+                      if (detected) {
+                        setSelectedCountry(detected);
+                        setPhoneNumber(val.slice(detected.code.length).trim());
+                      } else {
+                        setPhoneNumber(val);
+                      }
+                    }}
+                    className="w-full bg-[#0e1621] border border-[#2b394a] hover:border-[#5288c1] rounded-2xl px-3.5 py-2.5 text-xs text-white outline-none transition-colors"
+                    defaultValue=""
+                  >
+                    <option value="">{isArabic ? '-- اضغط لاختيار رقم محفوظ --' : '-- Choose a saved number --'}</option>
+                    {savedPhonesList.map((sp) => {
+                      const pNum = sp.phone_number || sp.phone;
+                      const pLabel = sp.label || sp.account_name || '';
+                      return (
+                        <option key={pNum} value={pNum} className="bg-[#17212b] text-white">
+                          {pNum} {pLabel ? `(⭐ ${pLabel})` : ''}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+
                 {/* Country Selector Dropdown */}
                 <div className="relative">
                   <label className="block text-xs font-medium text-gray-300 text-start mb-1.5">

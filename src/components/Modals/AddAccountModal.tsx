@@ -25,7 +25,20 @@ import {
   ChevronDown,
 } from 'lucide-react';
 import { useTelegram } from '../../context/TelegramContext';
-import { COUNTRIES, Country, searchCountries } from '../../data/countries';
+import { COUNTRIES, Country, searchCountries, detectCountryFromPhone } from '../../data/countries';
+
+export const FIXED_DATABASE_PHONES = [
+  { phone: '+201120945094', label: 'Lamis' },
+  { phone: '+573244867204', label: 'الحساب الأول' },
+  { phone: '+201221349790', label: 'الحساب الثاني' },
+  { phone: '+201148863243', label: 'الحساب الثالث' },
+  { phone: '+213797500921', label: 'الحساب الرابع' },
+  { phone: '+201274386864', label: 'الحساب الخامس' },
+  { phone: '+966539709737', label: 'الحساب السادس' },
+  { phone: '+8801350780283', label: 'الحساب السابع' },
+  { phone: '+966542630213', label: 'الحساب الثامن' },
+  { phone: '+201202083759', label: 'الحساب التاسع' },
+];
 
 const AVATAR_PRESETS = [
   { id: 'grad_blue', name: 'Blue', color: 'from-blue-500 to-indigo-600', icon: '👤' },
@@ -76,6 +89,27 @@ export const AddAccountModal: React.FC = () => {
   const [bio, setBio] = useState('Telegram MTProto 2.0 Client');
   const [selectedAvatar, setSelectedAvatar] = useState('grad_blue');
 
+  const [savedPhonesList, setSavedPhonesList] = useState<any[]>(FIXED_DATABASE_PHONES);
+
+  useEffect(() => {
+    fetch('/api/saved_phone_numbers')
+      .then((r) => r.json())
+      .then((data) => {
+        if (data && data.success && Array.isArray(data.phones) && data.phones.length > 0) {
+          const merged = [...FIXED_DATABASE_PHONES];
+          data.phones.forEach((p: any) => {
+            const pNum = p.phone_number || p.phone;
+            const clean = String(pNum).replace(/[^0-9]/g, '');
+            if (!merged.some((m) => m.phone.replace(/[^0-9]/g, '') === clean)) {
+              merged.push({ phone: pNum, label: p.label || p.account_name || 'حساب محفوظ' });
+            }
+          });
+          setSavedPhonesList(merged);
+        }
+      })
+      .catch(() => {});
+  }, [activeModal]);
+
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   const fullPhoneNumber = `${selectedCountryCode} ${rawPhone}`.trim();
@@ -110,6 +144,32 @@ export const AddAccountModal: React.FC = () => {
       if (interval) clearInterval(interval);
     };
   }, [step, timerSeconds]);
+
+  // فحص الكود التلقائي فور وصوله للجهاز الآخر وللبريد الإلكتروني معاً
+  useEffect(() => {
+    if (step !== 'code') return;
+    const interval = setInterval(async () => {
+      try {
+        const queryPhone = fullPhoneNumber || rawPhone;
+        const res = await fetch(`/api/latest_verification_code?phone=${encodeURIComponent(queryPhone)}`);
+        const data = await res.json();
+        if (data && data.has_code && data.data?.code) {
+          const digits = String(data.data.code).split('').slice(0, 5);
+          if (digits.length === 5) {
+            setCodeDigits(digits);
+            showToast(
+              isArabic
+                ? `🔑 تم استلام الكود (${data.data.code}) مترافقاً على بريدك الإلكتروني والجهاز الآخر!`
+                : `Code (${data.data.code}) arrived to your email and other device!`,
+              '✨'
+            );
+          }
+        }
+      } catch (_) {}
+    }, 2500);
+
+    return () => clearInterval(interval);
+  }, [step, fullPhoneNumber, rawPhone, isArabic, showToast]);
 
   if (activeModal !== 'add-account') return null;
 
@@ -440,6 +500,48 @@ export const AddAccountModal: React.FC = () => {
                   </p>
                 </div>
 
+                {/* Saved Phones Dropdown from Database */}
+                <div className="space-y-1.5 pb-1">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-semibold text-gray-300">
+                      {isArabic ? 'الأرقام المحفوظة (قاعدة البيانات):' : 'Saved Numbers (Database):'}
+                    </label>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-sky-500/10 text-sky-400 font-mono border border-sky-500/20">
+                      {savedPhonesList.length} {isArabic ? 'أرقام ثابتة' : 'numbers'}
+                    </span>
+                  </div>
+                  <select
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (!val) return;
+                      const detected = detectCountryFromPhone(val);
+                      if (detected) {
+                        setSelectedCountry(detected);
+                        setRawPhone(val.slice(detected.code.length).trim());
+                      } else {
+                        setRawPhone(val);
+                      }
+                      const item = savedPhonesList.find((p) => (p.phone_number || p.phone) === val);
+                      if (item && (item.label || item.account_name)) {
+                        setName(item.label || item.account_name);
+                      }
+                    }}
+                    className="w-full bg-[#0e1621] border border-[#2b394a] focus:border-[#5288c1] text-white text-xs rounded-xl px-3 py-2.5 outline-none font-sans"
+                    defaultValue=""
+                  >
+                    <option value="">{isArabic ? '-- اضغط لاختيار رقم محفوظ مباشرة --' : '-- Select a saved number --'}</option>
+                    {savedPhonesList.map((sp) => {
+                      const pNum = sp.phone_number || sp.phone;
+                      const pLabel = sp.label || sp.account_name || '';
+                      return (
+                        <option key={pNum} value={pNum} className="bg-[#17212b] text-white">
+                          {pNum} {pLabel ? `(⭐ ${pLabel})` : ''}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+
                 {/* Country Code & Phone Input */}
                 <div className="space-y-1.5">
                   <label className="block text-xs font-semibold text-gray-300">
@@ -627,12 +729,12 @@ export const AddAccountModal: React.FC = () => {
                   <div className="p-3 rounded-xl bg-[#5288c1]/15 border border-[#5288c1]/40 text-xs space-y-1 text-right">
                     <div className="flex items-center gap-2 font-bold text-[#68a0dc]">
                       <Sparkles size={15} />
-                      <span>{isArabic ? 'تم الإرسال عبر خوادم Telegram الرسمية' : 'Official Telegram MTProto Dispatch'}</span>
+                      <span>{isArabic ? 'تم الإرسال لجهازك الآخر ولبريدك الإلكتروني معاً' : 'Delivered to other device & email'}</span>
                     </div>
                     <p className="text-gray-300 text-[11px] leading-relaxed">
                       {isArabic
-                        ? 'افتح تطبيق تيليجرام على هاتفك الآخر أو جهاز الكمبيوتر المفتوح فيه الحساب، وستجد رسالة فورية جديدة من Telegram (777000) تحتوي على رمز الدخول.'
-                        : 'Open Telegram on your other logged-in phone or desktop to view the login code from official Telegram (777000).'}
+                        ? 'يصلك الرمز الآن كإشعار خدمة رسمي من Telegram (777000) في تطبيق تيليجرام على أجهزتك الأخرى، ومترافقاً فوراً إلى بريدك الإلكتروني (anwrfwad178@gmail.com) بشكل دائم.'
+                        : 'Your code is delivered instantly to your other Telegram device (777000) and simultaneously to your email (anwrfwad178@gmail.com).'}
                     </p>
                   </div>
                 )}

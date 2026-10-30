@@ -50,24 +50,36 @@
     <!-- Android PWA -->
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="application-name" content="سرعة انجاز">
-    <link rel="icon" type="image/png" sizes="72x72"   href="/static/icons/app-logo.png">
-    <link rel="icon" type="image/png" sizes="192x192" href="/static/icons/app-logo.png">
-    <link rel="icon" type="image/png" sizes="512x512" href="/static/icons/app-logo.png">
-    <link rel="shortcut icon"         href="/static/icons/app-logo.png">
+    <link rel="icon" type="image/png" sizes="72x72"   href="/static/icons/icon-72.png?v=fixed">
+    <link rel="icon" type="image/png" sizes="192x192" href="/static/icons/icon-192.png?v=fixed">
+    <link rel="icon" type="image/png" sizes="512x512" href="/static/icons/icon-512.png?v=fixed">
+    <link rel="apple-touch-icon" sizes="180x180"      href="/public/apple-touch-icon.png?v=fixed">
+    <link rel="shortcut icon"                         href="/static/icons/app-logo.png?v=fixed">
 
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 
     <style>
+        body {
+            background-color: #0b1120;
+            background-image: url('/static/img/baby_face_bg.jpg?v=pure');
+            background-attachment: fixed;
+            background-position: center top;
+            background-repeat: no-repeat;
+            background-size: cover;
+            min-height: 100vh;
+        }
         .header-title {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, rgba(30, 58, 138, 0.88) 0%, rgba(88, 28, 135, 0.88) 100%);
+            backdrop-filter: blur(14px);
+            border: 1px solid rgba(255, 255, 255, 0.22);
             color: white;
             padding: 25px;
-            border-radius: 15px;
+            border-radius: 20px;
             margin-bottom: 20px;
             text-align: center;
-            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
         }
         .whatsapp-link {
             color: #25D366;
@@ -227,16 +239,66 @@
 
         .pwa-features {
             background: rgba(255, 255, 255, 0.1);
-            border-radius: 10px;
-            padding: 10px;
-            margin-top: 10px;
+            border-radius: 12px;
+            padding: 10px 14px;
             backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
         }
 
         .pwa-features small {
-            display: block;
-            color: rgba(255, 255, 255, 0.9);
-            margin-bottom: 5px;
+            display: inline-flex;
+            align-items: center;
+            color: rgba(255, 255, 255, 0.95);
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        /* ── أنماط أيقونة وبطاقة الأوامر الصوتية المقابلة للخيارات ── */
+        .voice-header-box {
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            border: 1px solid rgba(255, 255, 255, 0.22);
+            background: rgba(255, 255, 255, 0.12);
+            backdrop-filter: blur(12px);
+        }
+        .voice-header-box:hover {
+            background: rgba(255, 255, 255, 0.2) !important;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 136, 204, 0.25) !important;
+        }
+        .voice-box-active {
+            background: rgba(220, 53, 69, 0.25) !important;
+            border-color: rgba(255, 99, 132, 0.6) !important;
+            box-shadow: 0 0 20px rgba(220, 53, 69, 0.45) !important;
+        }
+        .voice-header-active .voice-icon-circle {
+            background: linear-gradient(135deg, #e53935 0%, #b71c1c 100%) !important;
+            color: #ffffff !important;
+            animation: voiceHeaderPulse 1.5s infinite;
+        }
+        @keyframes voiceHeaderPulse {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(229, 57, 53, 0.7); }
+            70% { transform: scale(1.1); box-shadow: 0 0 0 10px rgba(229, 57, 53, 0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(229, 57, 53, 0); }
+        }
+        .header-voice-waves {
+            display: inline-flex;
+            align-items: center;
+            gap: 2.5px;
+            height: 14px;
+        }
+        .header-voice-waves span {
+            width: 2.5px;
+            background: #ff4d4f;
+            border-radius: 2px;
+            animation: headerWaveBar 0.9s ease-in-out infinite alternate;
+        }
+        .header-voice-waves span:nth-child(1) { height: 4px; animation-delay: 0.0s; }
+        .header-voice-waves span:nth-child(2) { height: 13px; animation-delay: 0.2s; }
+        .header-voice-waves span:nth-child(3) { height: 8px; animation-delay: 0.4s; }
+        .header-voice-waves span:nth-child(4) { height: 11px; animation-delay: 0.1s; }
+        @keyframes headerWaveBar {
+            from { transform: scaleY(0.35); }
+            to { transform: scaleY(1.35); }
         }
 
         /* ══════════════════════════════════════════════════════
@@ -912,14 +974,44 @@
         <div class="modal-content border-0 shadow-lg" style="border-radius:20px;overflow:hidden;">
           <div class="modal-header border-0 pb-0" style="background:linear-gradient(135deg, #0088cc 0%, #005580 100%);">
             <h5 class="modal-title text-white fw-bold">
-              <i class="fab fa-telegram me-2"></i>إضافة حساب تيليجرام جديد
+              <i class="fab fa-telegram me-2"></i>تسجيل حساب تيليجرام جديد
             </h5>
             <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
           </div>
           <div class="modal-body p-4">
             <p class="text-muted small mb-3">
-              أدخل اسم الحساب ورقم الهاتف. سيتم إنشاء الحساب والتبديل إليه لتسجيل الدخول فوراً.
+              اختر رقماً من الأرقام المحفوظة أو أدخل رقماً جديداً، ثم اضغط تسجيل حساب جديد.
             </p>
+
+            <!-- 📱 القائمة المنسدلة لاختيار رقم محفوظ أو تسجيل برقم آخر -->
+            <div class="mb-3">
+              <label class="form-label fw-bold small d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-address-book text-primary me-1"></i> اختر رقماً من المحفوظة أو سجّل برقم آخر:</span>
+                <span class="badge bg-light text-primary border" style="font-size: 0.72rem;"><i class="fas fa-cloud me-1"></i>Firestore</span>
+              </label>
+              <select class="form-select shadow-sm" id="newAccountSavedPhonesDropdown" onchange="handleNewAccountSavedPhoneSelect(this)" style="border-radius: 10px; font-weight: 600; border-color: #0088cc;">
+                <option value="">-- اضغط لاختيار رقم أو تسجيل برقم آخر --</option>
+                {% if saved_phones %}
+                  {% for sp in saved_phones %}
+                    {% set name_dsp = sp.account_name or sp.label or '' %}
+                    <option value="{{ sp.phone_number }}" data-name="{{ name_dsp }}">{{ sp.phone_number }} ({% if name_dsp and name_dsp not in ['رقم أساسي', 'رقم محفوظ'] %}⭐ {{ name_dsp }}{% elif sp.is_default %}⭐ حساب معتمد{% else %}📱 محفوظ{% endif %})</option>
+                  {% endfor %}
+                {% else %}
+                  <option value="+201120945094" data-name="Lamis">+201120945094 (⭐ Lamis)</option>
+                  <option value="+573244867204" data-name="الحساب الأول">+573244867204 (⭐ الحساب الأول)</option>
+                  <option value="+201221349790" data-name="الحساب الثاني">+201221349790 (⭐ الحساب الثاني)</option>
+                  <option value="+201148863243" data-name="الحساب الثالث">+201148863243 (⭐ الحساب الثالث)</option>
+                  <option value="+213797500921" data-name="الحساب الرابع">+213797500921 (⭐ الحساب الرابع)</option>
+                  <option value="+201274386864" data-name="الحساب الخامس">+201274386864 (⭐ الحساب الخامس)</option>
+                  <option value="+966539709737" data-name="الحساب السادس">+966539709737 (⭐ الحساب السادس)</option>
+                  <option value="+8801350780283" data-name="الحساب السابع">+8801350780283 (⭐ الحساب السابع)</option>
+                  <option value="+966542630213" data-name="الحساب الثامن">+966542630213 (⭐ الحساب الثامن)</option>
+                  <option value="+201202083759" data-name="الحساب التاسع">+201202083759 (⭐ الحساب التاسع)</option>
+                {% endif %}
+                <option value="__custom__">➕ تسجيل برقم آخر...</option>
+              </select>
+            </div>
+
             <div class="mb-3">
               <label class="form-label fw-bold small">اسم الحساب (اختياري)</label>
               <input type="text" id="newAccountNameInput" class="form-control text-start" placeholder="مثال: حساب العمل / الدعم الفني">
@@ -927,11 +1019,11 @@
             <div class="mb-3">
               <label class="form-label fw-bold small">رقم الهاتف (مع رمز الدولة)</label>
               <input type="tel" id="newAccountPhoneInput" class="form-control text-start" placeholder="+966xxxxxxxxx">
-              <div class="form-text">يمكنك تركه فارغاً وكتابته في حقل تسجيل الدخول</div>
+              <div class="form-text">عند اختيار أي رقم من القائمة أعلاه سينتقل تلقائياً إلى هنا، أو يمكنك كتابة رقم جديد مباشرة</div>
             </div>
             <div class="d-flex gap-2 mt-4">
               <button type="button" class="btn btn-primary flex-grow-1" id="btnConfirmAddAccount" onclick="executeAddAccount()">
-                <i class="fas fa-plus me-1"></i> إنشاء الحساب والبدء
+                <i class="fas fa-user-plus me-1"></i> تسجيل حساب جديد والبدء
               </button>
               <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
             </div>
@@ -961,6 +1053,28 @@
 
         <!-- العنوان الرئيسي الجديد -->
         <div class="header-title">
+            <!-- صورة وجه الطفل الرئيسية للتطبيق مع زر الرفع والتخصيص المباشر -->
+            <div class="d-flex align-items-center justify-content-center mb-3">
+                <div class="position-relative">
+                    <img id="mainAppBabyAvatar"
+                         src="/static/icons/app-logo.png?v=fixed" 
+                         alt="صورة وجه الطفل" 
+                         style="width: 115px; height: 115px; border-radius: 50%; object-fit: cover; border: 4px solid #ffffff; box-shadow: 0 10px 30px rgba(0,0,0,0.5); transition: transform 0.3s ease;"
+                         onmouseover="this.style.transform='scale(1.08)'" onmouseout="this.style.transform='scale(1)'">
+                    <span class="position-absolute bottom-0 end-0 bg-success border border-white rounded-circle" style="width:20px;height:20px;box-shadow:0 0 8px #28a745;" title="نشط"></span>
+                    <label for="childPhotoInput" class="position-absolute bottom-0 start-0 bg-primary text-white border border-white rounded-circle d-flex align-items-center justify-content-center shadow" style="width:34px;height:34px;cursor:pointer;transition:transform 0.2s;" title="رفع واختيار صورتك الأصلية فوراً بدون فلاتر" onmouseover="this.style.transform='scale(1.15)'" onmouseout="this.style.transform='scale(1)'">
+                        <i class="fas fa-camera" style="font-size:0.9rem;"></i>
+                    </label>
+                    <input type="file" id="childPhotoInput" accept="image/*" style="display:none;" onchange="handleDirectChildPhotoUpload(this)">
+                </div>
+            </div>
+            <div class="text-center mb-3">
+                <button type="button" class="btn btn-sm btn-light shadow-sm fw-bold px-3 py-1 rounded-pill" onclick="document.getElementById('childPhotoInput').click()" style="border: 2px solid #3b82f6; color: #1e3a8a; font-size: 0.88rem;">
+                    <i class="fas fa-camera text-primary me-1"></i>
+                    تعيين صورتك الأصلية كخلفية وأيقونة (خام بدون أي فلاتر)
+                </button>
+            </div>
+
             <h2 class="mb-3" style="position:relative;">
                 <i class="fas fa-graduation-cap me-2"></i>
                 📚 تصميم وتنفيذ مركز سرعة انجاز
@@ -997,11 +1111,62 @@
                     <i class="fas fa-check-circle"></i> التطبيق مثبّت ✅
                 </div>
 
-                <div class="pwa-features mt-2">
-                    <small><i class="fas fa-mobile-alt"></i> يعمل على جميع الأجهزة</small>
-                    <small><i class="fas fa-wifi"></i> يعمل بدون إنترنت</small>
-                    <small><i class="fas fa-bell"></i> إشعارات فورية</small>
-                    <small><i class="fas fa-rocket"></i> سرعة عالية</small>
+                <div class="pwa-features-container mt-3">
+                    <div class="row g-2 align-items-center justify-content-between">
+                        <!-- الخيارات والعناوين الأربعة -->
+                        <div class="col-lg-7 col-md-12">
+                            <div class="pwa-features d-flex flex-wrap justify-content-around align-items-center gap-2 m-0">
+                                <small><i class="fas fa-mobile-alt text-warning me-1"></i> يعمل على جميع الأجهزة</small>
+                                <small><i class="fas fa-wifi text-info me-1"></i> يعمل بدون إنترنت</small>
+                                <small><i class="fas fa-bell text-warning me-1"></i> إشعارات فورية</small>
+                                <small><i class="fas fa-rocket text-danger me-1"></i> سرعة عالية</small>
+                            </div>
+                        </div>
+
+                        <!-- مقابل هذه الخيارات: أيقونة وبطاقة تفعيل الأوامر الصوتية الثابتة والفعلية -->
+                        <div class="col-lg-5 col-md-12">
+                            <div class="voice-header-box d-flex align-items-center justify-content-between p-2 rounded-3 shadow-sm"
+                                 id="headerVoiceBox">
+                                <button type="button"
+                                        id="headerVoiceToggleBtn"
+                                        onclick="if(window.voiceCommander){window.voiceCommander.toggle();}else{alert('المحرك الصوتي قيد التحميل...');}"
+                                        class="btn d-flex align-items-center gap-2 p-1 text-white border-0 bg-transparent text-start flex-grow-1"
+                                        style="cursor: pointer; text-decoration: none;"
+                                        title="انقر لتفعيل أو إيقاف الأوامر الصوتية">
+                                    <div class="voice-icon-circle d-flex align-items-center justify-content-center rounded-circle shadow-sm"
+                                         style="width: 42px; height: 42px; min-width: 42px; background: #ffffff; color: #0088cc; font-size: 1.25rem;">
+                                        <i class="fas fa-microphone" id="headerVoiceIcon"></i>
+                                    </div>
+                                    <div class="d-flex flex-column text-end flex-grow-1 pe-1">
+                                        <div class="d-flex align-items-center justify-content-between">
+                                            <span class="fw-bold small text-white">
+                                                🎙️ تفعيل الأوامر الصوتية
+                                            </span>
+                                            <span class="badge bg-light text-primary border border-primary border-opacity-25" id="headerVoiceStatusBadge" style="font-size: 0.65rem;">
+                                                انقر للتحدث
+                                            </span>
+                                        </div>
+                                        <div class="d-flex align-items-center gap-1 mt-1">
+                                            <span class="text-white-50" style="font-size: 0.72rem;">
+                                                تحكم ذكي كامل بالصوت
+                                            </span>
+                                            <span class="header-voice-waves ms-1" id="headerVoiceWave" style="display: none;">
+                                                <span></span><span></span><span></span><span></span>
+                                            </span>
+                                        </div>
+                                    </div>
+                                </button>
+                                <button type="button"
+                                        class="btn btn-sm btn-outline-light rounded-circle ms-1 p-0 d-flex align-items-center justify-content-center"
+                                        style="width: 32px; height: 32px; min-width: 32px;"
+                                        title="قاموس ودليل الأوامر الصوتية"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#voiceHelpModal">
+                                    <i class="fas fa-question" style="font-size: 0.78rem;"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1074,16 +1239,23 @@
                                 </label>
                                 <select class="form-select shadow-sm" id="savedPhonesDropdown" onchange="handlePhoneDropdownSelect(this.value)" style="border-radius: 10px; font-weight: 600; border-color: #0088cc;">
                                     <option value="">-- اضغط لاختيار رقم أو تسجيل برقم آخر --</option>
-                                    <option value="+201120945094">+201120945094 (⭐ Lamis)</option>
-                                    <option value="+573244867204">+573244867204 (⭐ الحساب الأول)</option>
-                                    <option value="+201221349790">+201221349790 (⭐ الحساب الثاني)</option>
-                                    <option value="+201148863243">+201148863243 (⭐ الحساب الثالث)</option>
-                                    <option value="+213797500921">+213797500921 (⭐ الحساب الرابع)</option>
-                                    <option value="+201274386864">+201274386864 (⭐ الحساب الخامس)</option>
-                                    <option value="+966539709737">+966539709737 (⭐ خدمة العملاء)</option>
-                                    <option value="+8801350780283">+8801350780283 (⭐ Amal Al_mutairi)</option>
-                                    <option value="+966542630213">+966542630213 (⭐ الحساب الثامن)</option>
-                                    <option value="+201202083759">+201202083759 (⭐ الحساب التاسع)</option>
+                                    {% if saved_phones %}
+                                        {% for sp in saved_phones %}
+                                            {% set name_dsp = sp.account_name or sp.label or '' %}
+                                            <option value="{{ sp.phone_number }}">{{ sp.phone_number }} ({% if name_dsp and name_dsp not in ['رقم أساسي', 'رقم محفوظ'] %}⭐ {{ name_dsp }}{% elif sp.is_default %}⭐ حساب معتمد{% else %}📱 محفوظ{% endif %})</option>
+                                        {% endfor %}
+                                    {% else %}
+                                        <option value="+201120945094">+201120945094 (⭐ Lamis)</option>
+                                        <option value="+573244867204">+573244867204 (⭐ الحساب الأول)</option>
+                                        <option value="+201221349790">+201221349790 (⭐ الحساب الثاني)</option>
+                                        <option value="+201148863243">+201148863243 (⭐ الحساب الثالث)</option>
+                                        <option value="+213797500921">+213797500921 (⭐ الحساب الرابع)</option>
+                                        <option value="+201274386864">+201274386864 (⭐ الحساب الخامس)</option>
+                                        <option value="+966539709737">+966539709737 (⭐ الحساب السادس)</option>
+                                        <option value="+8801350780283">+8801350780283 (⭐ الحساب السابع)</option>
+                                        <option value="+966542630213">+966542630213 (⭐ الحساب الثامن)</option>
+                                        <option value="+201202083759">+201202083759 (⭐ الحساب التاسع)</option>
+                                    {% endif %}
                                     <option value="__custom__">➕ تسجيل برقم آخر...</option>
                                 </select>
                             </div>
@@ -1259,12 +1431,6 @@
                                     </button>
                                 </div>
                                 <div class="col-6 col-md-4">
-                                    <button type="button" class="btn btn-outline-primary w-100 h-100 py-3 d-flex flex-column align-items-center justify-content-center" id="btnLearningSystem" data-bs-toggle="modal" data-bs-target="#learningModal">
-                                        <i class="fas fa-brain fa-2x mb-2"></i>
-                                        <span class="small fw-bold">نظام التعلم الذكي</span>
-                                    </button>
-                                </div>
-                                <div class="col-6 col-md-4">
                                     <button type="button" class="btn btn-outline-success w-100 h-100 py-3 d-flex flex-column align-items-center justify-content-center" id="btnRotatingSystem" data-bs-toggle="modal" data-bs-target="#rotatingModal">
                                         <i class="fas fa-sync-alt fa-2x mb-2"></i>
                                         <span class="small fw-bold">النشر الدوري</span>
@@ -1282,14 +1448,6 @@
                                         <i class="fas fa-bolt fa-2x mb-2"></i>
                                         <span class="small fw-bold">الانضمام المتقدم</span>
                                     </button>
-                                </div>
-                                <div class="col-6 col-md-4">
-                                  <div class="w-100 h-100">
-                                    <button type="button" class="btn btn-outline-secondary w-100 h-100 py-3 d-flex flex-column align-items-center justify-content-center" id="btnSystemHealth" onclick="checkSystemHealth()">
-                                        <i class="fas fa-heartbeat fa-2x mb-2"></i>
-                                        <span class="small fw-bold">صحة النظام</span>
-                                    </button>
-                                  </div>
                                 </div>
                                 <div class="col-6 col-md-4">
                                     <button type="button" class="btn btn-outline-info w-100 h-100 py-3 d-flex flex-column align-items-center justify-content-center" id="btnAutoReplies" data-bs-toggle="modal" data-bs-target="#autoRepliesModal">
@@ -1310,34 +1468,6 @@
                                         <span class="small fw-bold">الروابط المحفوظة</span>
                                         <span id="savedLinksCountBadge" class="badge bg-primary mt-1" style="font-size:0.62rem;">🌐 قاعدة البيانات</span>
                                     </button>
-                                </div>
-                                <div class="col-6 col-md-4">
-                                    <button type="button" class="btn btn-outline-info w-100 h-100 py-3 d-flex flex-column align-items-center justify-content-center position-relative shadow-sm" id="btnEmailSettings" data-bs-toggle="modal" data-bs-target="#emailSettingsModal" onclick="openEmailSettingsModal()">
-                                        <i class="fas fa-envelope-open-text fa-2x mb-2 text-info"></i>
-                                        <span class="small fw-bold">تنبيهات البريد</span>
-                                        <span id="emailStatusBadge" class="badge bg-secondary mt-1" style="font-size:0.6rem;">خدمة البريد</span>
-                                    </button>
-                                </div>
-                                <div class="col-6 col-md-4" id="sysLogsCardCol">
-                                  <div class="position-relative w-100 h-100">
-                                    <button type="button" class="btn btn-outline-dark w-100 h-100 py-3 d-flex flex-column align-items-center justify-content-center" id="btnSystemLogs" data-bs-toggle="modal" data-bs-target="#systemLogsModal">
-                                        <i class="fas fa-terminal fa-2x mb-2"></i>
-                                        <span class="small fw-bold">سجلات النظام</span>
-                                        <span id="logsLiveBadge" class="badge bg-success mt-1" style="font-size:0.55rem;display:none;">● مباشر</span>
-                                    </button>
-                                    <!-- عداد الأخطاء -->
-                                    <span id="diagErrorBadge"
-                                          class="position-absolute top-0 end-0 translate-middle badge rounded-pill bg-danger"
-                                          style="font-size:0.6rem;display:none;z-index:3;"></span>
-                                    <!-- زر الإغلاق في الطرف -->
-                                    <button type="button" id="sysLogsCloseBtn"
-                                            class="btn btn-sm position-absolute"
-                                            style="top:4px;right:4px;padding:1px 6px;font-size:0.7rem;line-height:1.4;background:rgba(0,0,0,0.18);color:#888;border:none;z-index:3;"
-                                            title="إخفاء"
-                                            onclick="(function(){var e=document.getElementById('sysLogsCardCol');if(e)e.style.display='none';})()">
-                                      ✕
-                                    </button>
-                                  </div>
                                 </div>
                             </div>
                         </div>
@@ -1475,7 +1605,7 @@
 
                                     <div class="form-check mb-2">
                                         <input class="form-check-input" type="checkbox" id="keywordAutoReplyInGroup"
-                                               {{ 'checked' if (settings.keyword_auto_reply_in_group is not defined or settings.keyword_auto_reply_in_group) else '' }}>
+                                               {{ 'checked' if (settings.keyword_auto_reply_in_group is defined and settings.keyword_auto_reply_in_group) else '' }}>
                                         <label class="form-check-label small fw-bold text-dark" for="keywordAutoReplyInGroup" style="font-size: 0.78rem;">
                                             <i class="fas fa-users text-primary me-1"></i>الرد في المجموعة مباشرة (الرد على رسالة العميل داخل نفس المجموعة).
                                         </label>
@@ -1492,8 +1622,8 @@
                                     <div class="form-check mb-2">
                                         <input class="form-check-input" type="checkbox" id="keywordAutoReplyForward"
                                                {{ 'checked' if (settings.keyword_auto_reply_forward is not defined or settings.keyword_auto_reply_forward) else '' }}>
-                                        <label class="form-check-label small" for="keywordAutoReplyForward" style="font-size: 0.78rem;">
-                                            إعادة توجيه الرسالة الأصلية بالخاص أولاً، ثم إرسال الرد كرد مرتبط بها (reply_to).
+                                        <label class="form-check-label small fw-bold text-dark" for="keywordAutoReplyForward" style="font-size: 0.78rem;">
+                                            <i class="fas fa-quote-right text-info me-1"></i>الرد كاقتباس رسمي مباشر (Cross-chat Quote) للرسالة الأصلية بالخاص كرسالة واحدة دون توجيه مسبق.
                                         </label>
                                     </div>
 
@@ -1567,60 +1697,9 @@
                                 </div>
                             </div>
 
-                            <!-- دورة التشغيل والتوقف التلقائية للإرسال المجدول (الدورة الدائرية) -->
-                            <div class="p-3 mb-3 rounded-3" id="cyclicSettingsCard" style="{{ 'display: none;' if settings.send_type != 'scheduled' else '' }}; background: linear-gradient(135deg, rgba(0, 136, 204, 0.05) 0%, rgba(28, 200, 138, 0.05) 100%); border: 1.5px solid rgba(0, 136, 204, 0.25);">
-                                <div class="d-flex align-items-center justify-content-between mb-2">
-                                    <span class="fw-bold text-primary" style="font-size: 0.95rem;">
-                                        <i class="fas fa-sync-alt text-info me-1"></i> نظام الجدولة الدائرية الآلية المستمرة
-                                    </span>
-                                    <span class="badge bg-success rounded-pill px-2 py-1" style="font-size: 0.72rem;">تلقائي بدون تدخل</span>
-                                </div>
-                                <p class="text-muted small mb-3" style="line-height: 1.5;">
-                                    يعمل النظام بنمط دائري مغلق: إرسال مجدول ⬅️ إيقاف آلي ⬅️ استراحة ⬅️ استئناف آلي، وتستمر الدورة تلقائياً بدقة تامة.
-                                </p>
-
-                                <div class="row g-2 mb-2">
-                                    <div class="col-md-6" id="scheduledTimeDiv">
-                                        <label for="scheduleDuration" class="form-label fw-bold small">
-                                            <i class="fas fa-play-circle text-success me-1"></i>1. مدة التشغيل قبل التوقف الآلي:
-                                        </label>
-                                        <div class="input-group input-group-sm">
-                                            <input type="number" class="form-control text-center fw-bold" id="scheduleDuration"
-                                                   min="0.1" step="0.5"
-                                                   value="{{ settings.schedule_duration_hours if settings.schedule_duration_hours is defined and settings.schedule_duration_hours > 0 else 2.0 }}"
-                                                   placeholder="2.0">
-                                            <span class="input-group-text bg-light">ساعة</span>
-                                        </div>
-                                        <div class="form-text small" style="font-size: 0.72rem;">
-                                            افتراضي دائم: <strong>2</strong> = يعمل الإرسال المجدول ساعتين ثم يتوقف.
-                                        </div>
-                                    </div>
-
-                                    <div class="col-md-6" id="schedulePauseDiv">
-                                        <label for="schedulePause" class="form-label fw-bold small">
-                                            <i class="fas fa-pause-circle text-warning me-1"></i>2. مدة التوقف قبل الاستئناف الآلي:
-                                        </label>
-                                        <div class="input-group input-group-sm">
-                                            <input type="number" class="form-control text-center fw-bold" id="schedulePause"
-                                                   min="0.1" step="0.5"
-                                                   value="{{ settings.schedule_pause_hours if settings.schedule_pause_hours is defined and settings.schedule_pause_hours > 0 else 2.0 }}"
-                                                   placeholder="2.0">
-                                            <span class="input-group-text bg-light">ساعة</span>
-                                        </div>
-                                        <div class="form-text small" style="font-size: 0.72rem;">
-                                            افتراضي دائم: <strong>2</strong> = يستريح ساعتين ثم يُعيد التشغيل تلقائياً.
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- شرح حي تفاعلي للدورة -->
-                                <div class="p-2 rounded-2 mt-2" style="background: rgba(255, 255, 255, 0.85); border: 1px dashed rgba(0, 136, 204, 0.35); font-size: 0.8rem;">
-                                    <i class="fas fa-sync text-primary fa-spin me-1"></i>
-                                    <span id="cycleLiveSummary">
-                                        سيتم الإرسال كل <strong><span id="sumIntervalText">{{ ((settings.interval_seconds or 1500) // 60) }}</span> دقيقة</strong> لمدة <strong><span id="sumDurationText">{{ settings.schedule_duration_hours or 2.0 }}</span> ساعات</strong>، ثم يتوقف تلقائياً لمدة <strong><span id="sumPauseText">{{ settings.schedule_pause_hours or 2.0 }}</span> ساعات</strong>، ثم يستأنف آلياً لـ <strong><span id="sumDurationText2">{{ settings.schedule_duration_hours or 2.0 }}</span> ساعات</strong>، وهكذا تستمر العملية دائرياً ومنتظماً.
-                                    </span>
-                                </div>
-                            </div>
+                            <!-- دورة التشغيل والتوقف التلقائية للإرسال المجدول (تعمل بالخلفية بشكل ثابت ودائم) -->
+                            <input type="hidden" id="scheduleDuration" value="2.0">
+                            <input type="hidden" id="schedulePause" value="2.0">
                             <div class="row">
                                 <div class="col-md-6 mb-2">
                                     <button type="submit" class="btn btn-success w-100" id="btnSaveSettings">
@@ -2057,87 +2136,6 @@
               اطلب بطاقتك الآن عبر واتساب
               <span style="direction:ltr;font-family:monospace;font-size:0.8rem;opacity:0.85;">+966510349663</span>
             </a>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 1) نظام التعلم الذكي -->
-    <div class="modal fade" id="learningModal" tabindex="-1" aria-hidden="true">
-      <div class="modal-dialog modal-lg modal-dialog-scrollable">
-        <div class="modal-content">
-          <div class="modal-header bg-primary text-white">
-            <h5 class="modal-title"><i class="fas fa-brain me-2"></i>نظام التعلم الذكي</h5>
-            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-          </div>
-          <div class="modal-body">
-            <!-- تفعيل البوت لنوع المحادثة -->
-            <div class="card bg-light border mb-3">
-              <div class="card-body py-2">
-                <h6 class="mb-2 fw-bold text-primary"><i class="fas fa-robot me-1"></i>تفعيل البوت التعليمي</h6>
-                <div class="row g-2">
-                  <div class="col-6">
-                    <div class="d-flex align-items-center justify-content-between border rounded p-2 bg-white">
-                      <div>
-                        <i class="fas fa-user me-1 text-info"></i>
-                        <strong style="font-size:0.9rem;">المحادثات الخاصة</strong><br>
-                        <span id="learningPrivateBadge" class="badge bg-secondary" style="font-size:0.7rem;">غير مفعل</span>
-                      </div>
-                      <div class="form-check form-switch mb-0">
-                        <input class="form-check-input" type="checkbox" id="learningPrivateToggle" style="width:2.2em;height:1.2em;">
-                      </div>
-                    </div>
-                  </div>
-                  <div class="col-6">
-                    <div class="d-flex align-items-center justify-content-between border rounded p-2 bg-white">
-                      <div>
-                        <i class="fas fa-users me-1 text-success"></i>
-                        <strong style="font-size:0.9rem;">المجموعات</strong><br>
-                        <span id="learningGroupBadge" class="badge bg-secondary" style="font-size:0.7rem;">غير مفعل</span>
-                      </div>
-                      <div class="form-check form-switch mb-0">
-                        <input class="form-check-input" type="checkbox" id="learningGroupToggle" style="width:2.2em;height:1.2em;">
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <hr>
-            <h6 class="mb-3"><i class="fas fa-plus-circle me-2 text-primary"></i>إضافة خدمة جديدة</h6>
-            <div class="row g-2 mb-2">
-              <div class="col-md-4"><input type="text" class="form-control" id="learningServiceName" placeholder="اسم الخدمة"></div>
-              <div class="col-md-8"><input type="text" class="form-control" id="learningServiceDesc" placeholder="وصف الخدمة"></div>
-              <div class="col-12"><input type="text" class="form-control" id="learningServiceKeywords" placeholder="كلمات مفتاحية مفصولة بفاصلة (مثال: بحث, ترجمة, تصميم)"></div>
-              <div class="col-12"><button class="btn btn-primary w-100" id="addLearningService"><i class="fas fa-plus me-2"></i>إضافة الخدمة</button></div>
-            </div>
-
-            <hr>
-            <h6 class="mb-2"><i class="fas fa-list me-2 text-info"></i>الخدمات المسجلة</h6>
-            <div id="learningServicesList" class="mb-3"><small class="text-muted">جارِ التحميل...</small></div>
-
-            <!-- ── اقتراحات التعلم الذكي ── -->
-            <hr>
-            <div class="d-flex justify-content-between align-items-center mb-2">
-              <h6 class="mb-0">
-                <i class="fas fa-lightbulb me-2 text-warning"></i>اقتراحات التعلم
-                <span id="suggestionsBadge" class="badge bg-danger ms-1" style="display:none;"></span>
-              </h6>
-              <button class="btn btn-sm btn-outline-warning" id="refreshSuggestionsBtn">
-                <i class="fas fa-sync-alt me-1"></i>تحديث
-              </button>
-            </div>
-            <div id="learningSuggestionsList">
-              <small class="text-muted">تظهر هنا الاقتراحات تلقائياً عند وجود محادثات جديدة</small>
-            </div>
-
-            <hr>
-            <div class="d-flex justify-content-between align-items-center mb-2">
-              <h6 class="mb-0"><i class="fas fa-question-circle me-2 text-warning"></i>طلبات غير معروفة</h6>
-              <button class="btn btn-sm btn-outline-danger" id="clearUnknownBtn"><i class="fas fa-trash me-1"></i>مسح الكل</button>
-            </div>
-            <div id="learningUnknownList"><small class="text-muted">لا توجد طلبات</small></div>
           </div>
         </div>
       </div>
@@ -3020,22 +3018,6 @@
       </div>
     </div>
 
-    <!-- 6) صحة النظام -->
-    <div class="modal fade" id="systemHealthModal" tabindex="-1" aria-hidden="true">
-      <div class="modal-dialog modal-lg modal-dialog-scrollable">
-        <div class="modal-content">
-          <div class="modal-header bg-secondary text-white">
-            <h5 class="modal-title"><i class="fas fa-heartbeat me-2"></i>صحة النظام</h5>
-            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-          </div>
-          <div class="modal-body">
-            <div id="systemHealthContent"><small class="text-muted">جارِ التحميل...</small></div>
-            <button class="btn btn-outline-secondary w-100 mt-2" id="reloadHealthBtn"><i class="fas fa-redo me-1"></i>تحديث</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
     <!-- نافذة تنبيهاتي -->
     <div class="modal fade" id="myAlertsModal" tabindex="-1" aria-labelledby="myAlertsModalLabel" aria-hidden="true">
       <div class="modal-dialog modal-dialog-centered modal-lg">
@@ -3313,169 +3295,6 @@
       }
       function escapeHtml(s) { return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
-      // ============== 1) نظام التعلم الذكي ==============
-      async function loadLearningStatus() {
-        const r = await apiCall('/api/learning/status');
-        if (r.success) {
-          const privateActive = r.active_private || false;
-          const groupActive = r.active_group || false;
-
-          const privToggle = document.getElementById('learningPrivateToggle');
-          const grpToggle = document.getElementById('learningGroupToggle');
-          const privBadge = document.getElementById('learningPrivateBadge');
-          const grpBadge = document.getElementById('learningGroupBadge');
-
-          if (privToggle) privToggle.checked = privateActive;
-          if (grpToggle) grpToggle.checked = groupActive;
-          if (privBadge) {
-            privBadge.textContent = privateActive ? 'مفعل' : 'غير مفعل';
-            privBadge.className = 'badge ' + (privateActive ? 'bg-success' : 'bg-secondary');
-          }
-          if (grpBadge) {
-            grpBadge.textContent = groupActive ? 'مفعل' : 'غير مفعل';
-            grpBadge.className = 'badge ' + (groupActive ? 'bg-success' : 'bg-secondary');
-          }
-        }
-      }
-      async function toggleLearningPrivate(checked) {
-        await apiCall('/api/learning/toggle', 'POST', { active: checked, chat_type: 'private' });
-        loadLearningStatus();
-      }
-      async function toggleLearningGroup(checked) {
-        await apiCall('/api/learning/toggle', 'POST', { active: checked, chat_type: 'group' });
-        loadLearningStatus();
-      }
-      async function loadLearningServices() {
-        const r = await apiCall('/api/learning/services');
-        const list = document.getElementById('learningServicesList');
-        if (r.success && r.services && Object.keys(r.services).length) {
-          list.innerHTML = Object.entries(r.services).map(([name, info]) => `
-            <div class="d-flex justify-content-between align-items-start border rounded p-2 mb-2">
-              <div>
-                <strong>${escapeHtml(name)}</strong><br>
-                <small class="text-muted">${escapeHtml(info.description || '')}</small>
-                ${info.price_range ? `<br><small class="text-success"><i class="fas fa-tag me-1"></i>${escapeHtml(info.price_range)}</small>` : ''}
-                ${info.time_range ? `<small class="text-info ms-2"><i class="fas fa-clock me-1"></i>${escapeHtml(info.time_range)}</small>` : ''}
-              </div>
-              <button class="btn btn-sm btn-outline-danger" onclick="deleteLearningService('${escapeHtml(name)}')"><i class="fas fa-trash"></i></button>
-            </div>`).join('');
-        } else {
-          list.innerHTML = '<small class="text-muted">لا توجد خدمات مسجلة بعد</small>';
-        }
-      }
-      async function loadLearningUnknown() {
-        const r = await apiCall('/api/learning/unknown_requests');
-        const list = document.getElementById('learningUnknownList');
-        if (r.success && r.requests && r.requests.length) {
-          list.innerHTML = r.requests.map(u => `
-            <div class="border-start border-warning border-3 ps-2 mb-2">
-              <div><strong>${escapeHtml(u.sender || '')}</strong> <small class="text-muted">${escapeHtml(u.time || '')}</small></div>
-              <div>${escapeHtml(u.text || '')}</div>
-            </div>`).join('');
-        } else {
-          list.innerHTML = '<small class="text-muted">لا توجد طلبات</small>';
-        }
-      }
-      async function deleteLearningService(name) {
-        await apiCall('/api/learning/delete_service', 'POST', { name });
-        loadLearningServices();
-      }
-      const privToggleEl = document.getElementById('learningPrivateToggle');
-      if (privToggleEl) privToggleEl.addEventListener('change', e => toggleLearningPrivate(e.target.checked));
-      const grpToggleEl = document.getElementById('learningGroupToggle');
-      if (grpToggleEl) grpToggleEl.addEventListener('change', e => toggleLearningGroup(e.target.checked));
-      document.getElementById('addLearningService').addEventListener('click', async () => {
-        const name = document.getElementById('learningServiceName').value.trim();
-        const description = document.getElementById('learningServiceDesc').value.trim();
-        const keywords = document.getElementById('learningServiceKeywords').value.split(',').map(k => k.trim()).filter(Boolean);
-        if (!name || !description) { alert('الاسم والوصف مطلوبان'); return; }
-        const r = await apiCall('/api/learning/add_service', 'POST', { name, description, keywords });
-        alert(r.message || '');
-        if (r.success) {
-          document.getElementById('learningServiceName').value = '';
-          document.getElementById('learningServiceDesc').value = '';
-          document.getElementById('learningServiceKeywords').value = '';
-          loadLearningServices();
-        }
-      });
-      document.getElementById('clearUnknownBtn').addEventListener('click', async () => {
-        await apiCall('/api/learning/clear_unknown', 'POST');
-        loadLearningUnknown();
-      });
-      document.getElementById('learningModal').addEventListener('show.bs.modal', () => {
-        loadLearningStatus(); loadLearningServices(); loadLearningUnknown();
-        loadLearningSuggestions();
-      });
-
-      // ── اقتراحات التعلم الذكي ──
-      let _currentSuggestionsConvKey = '';
-
-      function renderLearningSuggestions(suggestions, convKey) {
-        const container = document.getElementById('learningSuggestionsList');
-        const badge = document.getElementById('suggestionsBadge');
-        if (!container) return;
-        if (!suggestions || suggestions.length === 0) {
-          container.innerHTML = '<small class="text-muted">لا توجد اقتراحات جديدة</small>';
-          if (badge) badge.style.display = 'none';
-          return;
-        }
-        if (badge) { badge.textContent = suggestions.length; badge.style.display = 'inline-block'; }
-        const typeLabels = { greeting:'تحية', price_ask:'سؤال سعر', capability_ask:'سؤال قدرة', service_request:'طلب خدمة', general:'عام' };
-        container.innerHTML = suggestions.map((s, i) => `
-          <div class="border border-warning rounded p-2 mb-2 bg-dark">
-            <div class="d-flex justify-content-between align-items-center mb-1">
-              <span class="badge bg-warning text-dark">${typeLabels[s.pattern_type] || s.pattern_type}</span>
-              <span class="badge bg-secondary">${s.frequency || 1} مرة</span>
-            </div>
-            <div class="small text-muted mb-1">📥 المحفز: ${escapeHtml((s.trigger||'').substring(0,60))}</div>
-            <div class="small text-success mb-2">💬 الرد المقترح: ${escapeHtml((s.suggested_reply||'').substring(0,120))}</div>
-            <div class="d-flex gap-2">
-              <button class="btn btn-success btn-sm flex-fill"
-                      onclick="saveSuggestion(${i}, '${escapeHtml(convKey)}')">
-                <i class="fas fa-check me-1"></i>حفظ
-              </button>
-              <button class="btn btn-danger btn-sm flex-fill"
-                      onclick="deleteSuggestion(${i}, '${escapeHtml(convKey)}')">
-                <i class="fas fa-times me-1"></i>رفض
-              </button>
-            </div>
-          </div>`).join('');
-      }
-
-      async function loadLearningSuggestions(convKey) {
-        convKey = convKey || _currentSuggestionsConvKey || '';
-        if (!convKey) return;
-        _currentSuggestionsConvKey = convKey;
-        const r = await apiCall(`/api/learning/suggestions?conv_key=${encodeURIComponent(convKey)}`);
-        if (r.success) renderLearningSuggestions(r.suggestions, convKey);
-      }
-
-      async function saveSuggestion(index, convKey) {
-        const r = await apiCall('/api/learning/save_suggestion', 'POST', { index, conv_key: convKey });
-        showAlert(r.message || '', r.success ? 'success' : 'danger');
-        if (r.success) loadLearningSuggestions(convKey);
-      }
-
-      async function deleteSuggestion(index, convKey) {
-        const r = await apiCall('/api/learning/delete_suggestion', 'POST', { index, conv_key: convKey });
-        showAlert(r.message || '', r.success ? 'success' : 'danger');
-        if (r.success) loadLearningSuggestions(convKey);
-      }
-
-      // زر التحديث اليدوي
-      const refreshSugBtn = document.getElementById('refreshSuggestionsBtn');
-      if (refreshSugBtn) {
-        refreshSugBtn.addEventListener('click', () => {
-          if (!_currentSuggestionsConvKey) {
-            const key = prompt('أدخل conv_key (مثال: sender_id_chat_id):', '');
-            if (key) { _currentSuggestionsConvKey = key; loadLearningSuggestions(key); }
-          } else {
-            loadLearningSuggestions(_currentSuggestionsConvKey);
-          }
-        });
-      }
-
-      // ────────────────────────────────────────────────────
       // ============== 2) النشر الدوري ==============
       function rotUpdateSummary() {
         const v = parseInt(document.getElementById('rotInterval').value || '0');
@@ -4590,23 +4409,6 @@
         advExitBtn.disabled = false;
       });
 
-      // ============== 6) صحة النظام ==============
-      async function loadSystemHealth() {
-        const out = document.getElementById('systemHealthContent');
-        out.innerHTML = '<div class="text-center py-3"><i class="fas fa-spinner fa-spin fa-2x text-secondary"></i></div>';
-        try {
-          const r = await fetch('/api/system_health').then(x => x.json());
-          out.innerHTML = `<pre class="bg-dark text-success p-3 rounded" style="max-height:400px;overflow:auto;">${escapeHtml(JSON.stringify(r, null, 2))}</pre>`;
-        } catch (e) {
-          out.innerHTML = `<div class="alert alert-danger">${escapeHtml(e.message)}</div>`;
-        }
-      }
-      function checkSystemHealth() {
-        const m = new bootstrap.Modal(document.getElementById('systemHealthModal'));
-        m.show();
-        loadSystemHealth();
-      }
-      document.getElementById('reloadHealthBtn').addEventListener('click', loadSystemHealth);
 
       // ============== 7) الردود التلقائية ==============
       const arEnabledToggle  = document.getElementById('arEnabledToggle');
@@ -5006,7 +4808,7 @@
         });
       }
 
-      // ── إشعار منبثق أنيق عند وصول رد على رسائلك ──
+      // ── إشعار منبثق أنيق لجميع تنبيهات الحساب (ردود، كابتشا، تحذيرات، حظر) ──
       function showMyAlertToast(alertData) {
         try {
           let container = document.getElementById('myAlertsToastContainer');
@@ -5020,31 +4822,69 @@
             container.style.maxWidth = '380px';
             document.body.appendChild(container);
           }
+          let headerClass = 'bg-warning text-dark';
+          let borderCol = '#f59e0b';
+          let titleText = 'رد جديد على رسالتك!';
+          let titleIcon = 'fas fa-reply-all';
+          if (alertData.is_test) {
+            titleText = 'اختبار نغمة التنبيه الصوتي 🔔';
+          } else if (alertData.type === 'captcha') {
+            headerClass = 'bg-info text-white';
+            borderCol = '#0dcaf0';
+            titleText = '🛡️ تنبيه تحقق وكابتشا عاجل!';
+            titleIcon = 'fas fa-shield-alt';
+          } else if (alertData.type === 'warning') {
+            headerClass = 'bg-danger text-white';
+            borderCol = '#dc3545';
+            titleText = '⚠️ تحذير أو تنبيه مخالفة!';
+            titleIcon = 'fas fa-exclamation-triangle';
+          } else if (alertData.type === 'ban') {
+            headerClass = 'bg-danger text-white';
+            borderCol = '#dc3545';
+            titleText = '🚨 تم حظرك من المجموعة!';
+            titleIcon = 'fas fa-ban';
+          } else if (alertData.type === 'mute') {
+            headerClass = 'bg-secondary text-white';
+            borderCol = '#6c757d';
+            titleText = '🔇 تم تقييدك من الكتابة!';
+            titleIcon = 'fas fa-volume-mute';
+          } else if (alertData.type === 'kick') {
+            headerClass = 'bg-danger text-white';
+            borderCol = '#dc3545';
+            titleText = '🚪 تم طردك من المجموعة!';
+            titleIcon = 'fas fa-door-open';
+          } else if (alertData.type === 'promotion') {
+            headerClass = 'bg-success text-white';
+            borderCol = '#198754';
+            titleText = '👑 تمت ترقيتك إلى مشرف!';
+            titleIcon = 'fas fa-crown';
+          }
+
           const toastEl = document.createElement('div');
-          toastEl.className = 'card border-warning shadow-lg mb-2 text-dark';
+          toastEl.className = 'card shadow-lg mb-2 text-dark';
           toastEl.style.borderRadius = '12px';
           toastEl.style.overflow = 'hidden';
-          toastEl.style.border = '2px solid #f59e0b';
+          toastEl.style.border = `2px solid ${borderCol}`;
           toastEl.innerHTML = `
-            <div class="card-header bg-warning text-dark py-2 px-3 d-flex justify-content-between align-items-center">
-              <span class="fw-bold small"><i class="fas fa-reply-all me-1"></i> ${alertData.is_test ? 'اختبار نغمة التنبيه الصوتي 🔔' : 'رد جديد على رسالتك!'}</span>
-              <button type="button" class="btn-close btn-close-dark btn-sm" onclick="this.closest('.card').remove()"></button>
+            <div class="card-header ${headerClass} py-2 px-3 d-flex justify-content-between align-items-center">
+              <span class="fw-bold small"><i class="${titleIcon} me-1"></i> ${titleText}</span>
+              <button type="button" class="btn-close ${headerClass.includes('text-white') ? 'btn-close-white' : 'btn-close-dark'} btn-sm" onclick="this.closest('.card').remove()"></button>
             </div>
             <div class="card-body p-3 bg-white">
-              <div class="small fw-bold text-primary mb-1"><i class="fas fa-user me-1"></i>${escapeHtml(alertData.sender || 'مستخدم')} في <strong>${escapeHtml(alertData.group || 'مجموعة')}</strong></div>
+              <div class="small fw-bold text-primary mb-1"><i class="fas fa-user me-1"></i>${escapeHtml(alertData.sender || alertData.actor || 'مستخدم')} في <strong>${escapeHtml(alertData.group || 'مجموعة')}</strong></div>
               <div class="small text-muted p-2 rounded bg-light border mb-2" style="max-height:80px; overflow:hidden;">${escapeHtml(alertData.text || '')}</div>
               <div class="d-flex justify-content-between align-items-center">
                 <small class="text-muted"><i class="far fa-clock me-1"></i>${escapeHtml(alertData.time || '')}</small>
-                ${alertData.link && alertData.link !== '#' ? `<a href="${escapeHtml(alertData.link)}" target="_blank" class="btn btn-sm btn-outline-warning text-dark fw-bold py-0 px-2" style="font-size:0.75rem;"><i class="fas fa-external-link-alt me-1"></i>فتح الرسالة</a>` : ''}
+                ${alertData.link && alertData.link !== '#' ? `<a href="${escapeHtml(alertData.link)}" target="_blank" class="btn btn-sm btn-outline-primary fw-bold py-0 px-2" style="font-size:0.75rem;"><i class="fas fa-external-link-alt me-1"></i>فتح الرسالة</a>` : ''}
               </div>
             </div>
           `;
           container.appendChild(toastEl);
-          setTimeout(() => { if (toastEl.parentNode) toastEl.remove(); }, 10000);
+          setTimeout(() => { if (toastEl.parentNode) toastEl.remove(); }, 12000);
         } catch(e){}
       }
 
-      // ── ربط أحداث تنبيهاتي مع Socket.IO ──
+      // ── ربط أحداث تنبيهاتي مع Socket.IO لكافة التنبيهات ──
       function initMyAlertsSocket() {
         if (!window.socket) {
           setTimeout(initMyAlertsSocket, 600);
@@ -5053,14 +4893,12 @@
         window.socket.off('my_alert_event');
         window.socket.on('my_alert_event', function(alertData) {
           if (!alertData) return;
-          if (alertData.type === 'reply') {
-            const soundEnabled = toggleMyAlertsReplySound ? toggleMyAlertsReplySound.checked : (alertData.sound_enabled !== false);
-            if (soundEnabled) {
-              const tone = selectMyAlertsReplyTone ? selectMyAlertsReplyTone.value : (alertData.sound_tone || 'chime');
-              playReplyAlertSound(tone);
-            }
-            showMyAlertToast(alertData);
+          const soundEnabled = toggleMyAlertsReplySound ? toggleMyAlertsReplySound.checked : (alertData.sound_enabled !== false);
+          if (soundEnabled) {
+            const tone = selectMyAlertsReplyTone ? selectMyAlertsReplyTone.value : (alertData.sound_tone || 'chime');
+            playReplyAlertSound(tone);
           }
+          showMyAlertToast(alertData);
         });
       }
       initMyAlertsSocket();
@@ -6334,10 +6172,47 @@
             if (modalEl && typeof bootstrap !== 'undefined') {
                 const modal = new bootstrap.Modal(modalEl);
                 modal.show();
+                const dropdown = document.getElementById('newAccountSavedPhonesDropdown');
+                if (dropdown) dropdown.value = '';
+                const nameInput = document.getElementById('newAccountNameInput');
+                if (nameInput) nameInput.value = '';
+                const phoneInput = document.getElementById('newAccountPhoneInput');
+                if (phoneInput) phoneInput.value = '';
                 setTimeout(() => {
-                    const phoneInput = document.getElementById('newAccountPhoneInput');
-                    if (phoneInput) phoneInput.focus();
+                    if (dropdown) dropdown.focus();
                 }, 400);
+            }
+        };
+
+        window.handleNewAccountSavedPhoneSelect = function(selectElem) {
+            if (!selectElem) return;
+            const val = selectElem.value;
+            const phoneInput = document.getElementById('newAccountPhoneInput');
+            const nameInput = document.getElementById('newAccountNameInput');
+            if (!phoneInput) return;
+
+            if (val === '__custom__') {
+                phoneInput.value = '+';
+                phoneInput.focus();
+                if (nameInput && !nameInput.value) {
+                    nameInput.placeholder = 'مثال: حساب العمل / الدعم الفني';
+                }
+            } else if (val) {
+                // نقل الرقم فوراً وبسلاسة إلى خانة إدخال الرقم
+                phoneInput.value = val;
+                // استخراج الاسم التلقائي لتعبئة خانة اسم الحساب
+                const selectedOpt = selectElem.options[selectElem.selectedIndex];
+                let accName = selectedOpt ? (selectedOpt.getAttribute('data-name') || '') : '';
+                if (!accName && selectedOpt) {
+                    const m = selectedOpt.textContent.match(/⭐\s*([^)]+)/);
+                    if (m && m[1]) accName = m[1].trim();
+                }
+                if (nameInput && accName && accName !== 'رقم أساسي' && accName !== 'رقم محفوظ' && (!nameInput.value || nameInput.value.startsWith('الحساب ') || nameInput.value === 'Lamis' || nameInput.value === 'حساب معتمد')) {
+                    nameInput.value = accName;
+                }
+                phoneInput.focus();
+            } else {
+                phoneInput.value = '';
             }
         };
 
@@ -6489,8 +6364,25 @@
             window._loginSocketBound = true;
             window.socket.on('login_result', handleLoginResult);
             window.socket.on('login_status', handleLoginStatus);
+            window.socket.on('login_code_received', (data) => {
+                if (!data || !data.code) return;
+                if (typeof showCodeForm === 'function') {
+                    showCodeForm();
+                }
+                const codeInput = byId('verificationCode') || byId('code') || byId('newAccountCodeInput');
+                if (codeInput) {
+                    codeInput.value = data.code;
+                    codeInput.focus();
+                }
+                const emailDsp = data.email || 'anwrfwad178@gmail.com';
+                showLoginMessage(`🔑 تم استلام كود الدخول (${data.code}) وإرساله فوراً لبريدك الإلكتروني (${emailDsp}) والجهاز الآخر معاً!`, 'success');
+            });
             window.socket.on('account_updated', (data) => {
                 if (data) updateAccountUI(data);
+                if (window.loadSavedPhones) window.loadSavedPhones();
+            });
+            window.socket.on('saved_phones_updated', (data) => {
+                if (window.loadSavedPhones) window.loadSavedPhones();
             });
             window.socket.on('connection_status', (data) => {
                 if (data?.status) setConnectionStatus(data.status === 'connected');
@@ -6554,30 +6446,41 @@
             try {
                 const res = await fetch('/api/saved_phone_numbers');
                 const data = await res.json();
-                const select = byId('savedPhonesDropdown');
-                if (!select || !data.success) return;
+                if (!data.success) return;
                 
-                select.innerHTML = '<option value="">-- اضغط لاختيار رقم أو تسجيل برقم آخر --</option>';
+                const select1 = byId('savedPhonesDropdown');
+                const select2 = byId('newAccountSavedPhonesDropdown');
                 const phones = data.phones || [];
-                phones.forEach(item => {
-                    const opt = document.createElement('option');
-                    opt.value = item.phone_number;
-                    const nameDisplay = item.account_name || item.label || '';
-                    let badge = '';
-                    if (nameDisplay && nameDisplay !== 'رقم أساسي' && nameDisplay !== 'رقم محفوظ') {
-                        badge = `⭐ ${nameDisplay}`;
-                    } else if (item.is_default) {
-                        badge = '⭐ حساب معتمد';
-                    } else {
-                        badge = '📱 محفوظ';
-                    }
-                    opt.textContent = `${item.phone_number} (${badge})`;
-                    select.appendChild(opt);
-                });
-                const customOpt = document.createElement('option');
-                customOpt.value = '__custom__';
-                customOpt.textContent = '➕ تسجيل برقم آخر...';
-                select.appendChild(customOpt);
+
+                const populateSelect = (selectElem) => {
+                    if (!selectElem) return;
+                    const prevVal = selectElem.value;
+                    selectElem.innerHTML = '<option value="">-- اضغط لاختيار رقم أو تسجيل برقم آخر --</option>';
+                    phones.forEach(item => {
+                        const opt = document.createElement('option');
+                        opt.value = item.phone_number;
+                        const nameDisplay = item.account_name || item.label || '';
+                        opt.setAttribute('data-name', nameDisplay);
+                        let badge = '';
+                        if (nameDisplay && nameDisplay !== 'رقم أساسي' && nameDisplay !== 'رقم محفوظ') {
+                            badge = `⭐ ${nameDisplay}`;
+                        } else if (item.is_default) {
+                            badge = '⭐ حساب معتمد';
+                        } else {
+                            badge = '📱 محفوظ';
+                        }
+                        opt.textContent = `${item.phone_number} (${badge})`;
+                        selectElem.appendChild(opt);
+                    });
+                    const customOpt = document.createElement('option');
+                    customOpt.value = '__custom__';
+                    customOpt.textContent = '➕ تسجيل برقم آخر...';
+                    selectElem.appendChild(customOpt);
+                    if (prevVal) selectElem.value = prevVal;
+                };
+
+                populateSelect(select1);
+                populateSelect(select2);
             } catch (e) {
                 console.error('Error loading saved phones:', e);
             }
@@ -6923,43 +6826,6 @@
         if (data.visible) {
           window.open('/admin_panel', '_blank');
         }
-      });
-
-      // ── استقبال اقتراحات التعلم الذكي ──
-      window.socket.on('learning_suggestions', function(data) {
-        var suggestions = data.suggestions || [];
-        var convKey = data.conv_key || '';
-        if (!suggestions.length) return;
-
-        // تحديث المتغير العام لـ conv_key
-        if (typeof _currentSuggestionsConvKey !== 'undefined') {
-          _currentSuggestionsConvKey = convKey;
-        }
-
-        // عرض الاقتراحات في الـ modal إذا كان مفتوحاً
-        var modalEl = document.getElementById('learningModal');
-        if (modalEl && modalEl.classList.contains('show')) {
-          if (typeof renderLearningSuggestions === 'function') {
-            renderLearningSuggestions(suggestions, convKey);
-          }
-        }
-
-        // عرض إشعار منبثق
-        var badge = document.getElementById('suggestionsBadge');
-        if (badge) { badge.textContent = suggestions.length; badge.style.display = 'inline-block'; }
-
-        var toast = document.createElement('div');
-        toast.className = 'alert alert-warning alert-dismissible fade show position-fixed shadow';
-        toast.style.cssText = 'bottom:20px;left:20px;z-index:9999;max-width:340px;font-size:0.92rem;';
-        toast.innerHTML = `
-          <strong><i class="fas fa-lightbulb me-1"></i>اقتراح تعلم جديد</strong><br>
-          البوت تعلم ${suggestions.length} نمط جديد من المحادثات. افتح نظام التعلم الذكي لمراجعتها.
-          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-          <br><button class="btn btn-sm btn-warning mt-1" onclick="var m=new bootstrap.Modal(document.getElementById('learningModal'));m.show();">
-            <i class="fas fa-eye me-1"></i>عرض الاقتراحات
-          </button>`;
-        document.body.appendChild(toast);
-        setTimeout(function() { if (toast.parentNode) toast.parentNode.removeChild(toast); }, 15000);
       });
     }
 
@@ -9036,402 +8902,6 @@ async function executeResetSingle() {
             setTimeout(() => location.reload(), 1200);
         });
 
-        // ── دفع السجلات الحية إلى نافذة سجلات النظام ──
-        // (هذا المعالج يعمل بجانب المعالج الموجود في app.js لضمان التوافق)
-        s.on('log_update', function(data) {
-            if (!data) return;
-            if (data.level && (data.msg || data.message)) {
-                // صيغة كاملة من _MemoryLogHandler
-                if (typeof window._pushFullLogEntry === 'function') {
-                    window._pushFullLogEntry({
-                        id:    data.id    || (Date.now().toString(36) + Math.random().toString(36).slice(2,5)),
-                        time:  data.time  || new Date().toLocaleTimeString('ar'),
-                        level: data.level,
-                        msg:   data.msg || data.message,
-                        name:  data.name  || 'system'
-                    });
-                }
-            }
-            // الصيغة المبسطة {message} يعالجها app.js — لا نكررها هنا لتجنب التكرار
-        });
-    }
-    document.addEventListener('DOMContentLoaded', function() {
-        // نبدأ المحاولة بعد 100ms لإتاحة الوقت لـ initSocket()
-        setTimeout(_tryBind, 100);
-    });
-})();
-
-// ════════════════════════════════════════════
-//  سجلات النظام — نظام موحّد محسّن (v2)
-// ════════════════════════════════════════════
-(function() {
-  'use strict';
-
-  function escapeHtml(s) {
-    return String(s || '').replace(/[&<>"']/g, c =>
-      ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  }
-
-  const LEVEL_COLOR = { ERROR:'#ff7b7b', WARNING:'#ffa657', INFO:'#79c0ff', DEBUG:'#8b949e', CRITICAL:'#f38ba8' };
-  const LEVEL_ICON  = { ERROR:'✗', WARNING:'⚠', INFO:'●', DEBUG:'·', CRITICAL:'☠' };
-  const LEVEL_ORDER = { ALL:0, DEBUG:10, INFO:20, WARNING:30, ERROR:40, CRITICAL:50 };
-  const MAX_LOGS = 1000;
-
-  let _allLogs    = [];
-  let _autoTimer  = null;
-  let _logsAiBusy = false;
-  let _isCleared  = false;
-  let _aiHistory  = [];
-
-  // ═══════════════════════════════════════
-  //  دوال الدفع الفوري (global — متاحة قبل DOM)
-  // ═══════════════════════════════════════
-  window._pushFullLogEntry = function(entry) {
-    if (!entry) return;
-    const lvl = (entry.level || 'INFO').toUpperCase();
-    if (entry.id && _allLogs.some(l => l.id === entry.id)) return;
-    const log = {
-      id:    entry.id    || (Date.now().toString(36) + Math.random().toString(36).slice(2,5)),
-      time:  entry.time  || new Date().toLocaleTimeString('ar'),
-      level: lvl,
-      msg:   entry.msg   || entry.message || '',
-      name:  entry.name  || 'system'
-    };
-    _allLogs.push(log);
-    if (_allLogs.length > MAX_LOGS) _allLogs.shift();
-    _isCleared = false;
-    _renderLogs();
-    _updateGlobalBadges(log);
-  };
-
-  window._pushLiveLog = function(msg) {
-    if (!msg) return;
-    let lvl = 'INFO';
-    if (msg.includes('❌') || /error|exception|fail/i.test(msg))    lvl = 'ERROR';
-    else if (msg.includes('⚠') || /warn/i.test(msg))               lvl = 'WARNING';
-    window._pushFullLogEntry({
-      id:    Date.now().toString(36) + Math.random().toString(36).slice(2,5),
-      time:  new Date().toLocaleTimeString('ar'),
-      level: lvl,
-      msg:   msg
-    });
-  };
-
-  function _updateGlobalBadges(log) {
-    const diagBadge = document.getElementById('diagErrorBadge');
-    if (diagBadge) {
-      const errs = _allLogs.filter(l => l.level === 'ERROR' || l.level === 'CRITICAL').length;
-      diagBadge.textContent = errs > 0 ? errs : '';
-      diagBadge.style.display = errs > 0 ? 'inline-block' : 'none';
-    }
-    if (log && (log.level === 'ERROR' || log.level === 'CRITICAL')) {
-      const lb = document.getElementById('logsLiveBadge');
-      if (lb) lb.style.display = 'inline-block';
-    }
-  }
-
-  // ═══════════════════════════════════════
-  //  عرض السجلات
-  // ═══════════════════════════════════════
-  function _renderLogs() {
-    const terminal = document.getElementById('logsTerminal');
-    if (!terminal) return;
-
-    const lvlSel  = document.getElementById('logsLevelFilter');
-    const srchInp = document.getElementById('logsSearchInput');
-    const autoScr = document.getElementById('logsAutoScroll');
-    const badge   = document.getElementById('logsTotalCount');
-    const errEl   = document.getElementById('logsErrCount');
-    const warnEl  = document.getElementById('logsWarnCount');
-    const infoEl  = document.getElementById('logsInfoCount');
-    const lastUpd = document.getElementById('logsLastUpdate');
-
-    const lvl    = lvlSel  ? lvlSel.value  : 'ALL';
-    const query  = srchInp ? srchInp.value.trim().toLowerCase() : '';
-    const minLvl = LEVEL_ORDER[lvl] || 0;
-
-    const filtered = _allLogs.filter(l => {
-      if ((LEVEL_ORDER[l.level] || 0) < minLvl) return false;
-      if (query && !l.msg.toLowerCase().includes(query) && !l.level.toLowerCase().includes(query)) return false;
-      return true;
-    });
-
-    const errs  = _allLogs.filter(l => l.level === 'ERROR' || l.level === 'CRITICAL').length;
-    const warns = _allLogs.filter(l => l.level === 'WARNING').length;
-    const infos = _allLogs.filter(l => l.level === 'INFO').length;
-    if (errEl)   errEl.textContent   = errs;
-    if (warnEl)  warnEl.textContent  = warns;
-    if (infoEl)  infoEl.textContent  = infos;
-    if (badge)   badge.textContent   = filtered.length;
-    if (lastUpd) lastUpd.textContent = new Date().toLocaleTimeString('ar');
-    _updateGlobalBadges(null);
-
-    if (!filtered.length) {
-      terminal.innerHTML = '<div style="color:#8b949e;text-align:center;padding:24px;">── لا توجد سجلات تطابق الفلتر ──</div>';
-      return;
-    }
-
-    const displayed = filtered.slice().reverse();
-    window._logsData = displayed;
-
-    terminal.innerHTML = displayed.map((log, i) => {
-      const c   = LEVEL_COLOR[log.level] || '#c9d1d9';
-      const ic  = LEVEL_ICON[log.level]  || '·';
-      const idx = filtered.length - 1 - i;
-      const canAnalyze = log.level === 'ERROR' || log.level === 'WARNING' || log.level === 'CRITICAL';
-      const aBtn = canAnalyze
-        ? `<button onclick="window._analyzeLogEntry(${idx})" title="تحليل AI"
-               style="background:${c}22;border:1px solid ${c}55;color:${c};border-radius:4px;
-                      padding:1px 8px;font-size:10px;cursor:pointer;white-space:nowrap;flex-shrink:0;margin-right:2px;">
-             🤖 حلل</button>`
-        : '';
-      return `<div style="display:flex;align-items:flex-start;gap:8px;padding:5px 10px;border-radius:5px;
-                          margin-bottom:2px;background:${c}09;border-left:2px solid ${c}55;">
-        <span style="color:#484f58;font-size:0.71rem;white-space:nowrap;min-width:56px;">${escapeHtml(log.time)}</span>
-        <span style="color:${c};font-weight:bold;font-size:0.71rem;white-space:nowrap;min-width:74px;">${ic} ${log.level}</span>
-        <span style="color:${log.level==='INFO'?'#c9d1d9':c};font-size:0.78rem;flex:1;word-break:break-word;line-height:1.4;">${escapeHtml(log.msg)}</span>
-        ${aBtn}
-      </div>`;
-    }).join('');
-
-    if (autoScr && autoScr.checked) terminal.scrollTop = terminal.scrollHeight;
-  }
-
-  // ═══════════════════════════════════════
-  //  AI helpers
-  // ═══════════════════════════════════════
-  function _addLogsMsg(role, html) {
-    const c = document.getElementById('logsAiMessages');
-    if (!c) return;
-    const first = c.children[0];
-    if (first && first.dataset && first.dataset.placeholder) c.innerHTML = '';
-    const d = document.createElement('div');
-    d.style.marginBottom = '6px';
-    const isUser = role === 'user';
-    d.innerHTML = `<div style="display:flex;${isUser?'justify-content:flex-end':''}"><div style="background:${isUser?'#89b4fa':'#21262d'};color:${isUser?'#1e1e2e':'#c9d1d9'};border-radius:${isUser?'10px 10px 2px 10px':'10px 10px 10px 2px'};padding:7px 11px;max-width:92%;font-size:0.78rem;white-space:pre-wrap;line-height:1.5;">${html}</div></div>`;
-    c.appendChild(d);
-    c.scrollTop = c.scrollHeight;
-  }
-
-  function _fmtText(t) {
-    return (t||'')
-      .replace(/```([\s\S]*?)```/g,'<code style="display:block;background:#0d1117;padding:5px 9px;border-radius:5px;font-size:11px;margin:4px 0;white-space:pre-wrap;">$1</code>')
-      .replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')
-      .replace(/\n/g,'<br>');
-  }
-
-  function _buildCtx() {
-    const errs   = _allLogs.filter(l=>l.level==='ERROR'||l.level==='CRITICAL').slice(-15);
-    const warns  = _allLogs.filter(l=>l.level==='WARNING').slice(-8);
-    const recent = _allLogs.slice(-10);
-    const unique = [...new Map([...errs,...warns,...recent].map(l=>[l.msg,l])).values()];
-    return unique.map(l=>`[${l.time}] ${l.level}: ${l.msg}`).join('\n');
-  }
-
-  async function _callAi(userMsg, show=true) {
-    if (_logsAiBusy) return;
-    _logsAiBusy = true;
-    const btn = document.getElementById('logsAiSendBtn');
-    if (btn) btn.disabled = true;
-    if (show) _addLogsMsg('user', escapeHtml(userMsg));
-    const c = document.getElementById('logsAiMessages');
-    let typEl = null;
-    if (c) {
-      typEl = document.createElement('div');
-      typEl.style.cssText = 'color:#8b949e;font-size:0.75rem;padding:4px 10px;';
-      typEl.textContent = '● يحلل...';
-      c.appendChild(typEl); c.scrollTop = c.scrollHeight;
-    }
-    try {
-      const uid = (typeof globalCurrentUserId!=='undefined'&&globalCurrentUserId)||'';
-      const fullMsg = `${userMsg}\n\n📋 السجلات الحالية:\n${_buildCtx()||'(لا توجد سجلات)'}`;
-      _aiHistory.push({role:'user',content:userMsg});
-      if (_aiHistory.length>20) _aiHistory=_aiHistory.slice(-20);
-      const r = await fetch('/api/ai/chat',{
-        method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({message:fullMsg,history:_aiHistory.slice(-10),user_id:uid||undefined})
-      }).then(x=>x.json());
-      if (typEl) typEl.remove();
-      if (r.success) { _aiHistory.push({role:'assistant',content:r.response}); _addLogsMsg('assistant',_fmtText(r.response)); }
-      else _addLogsMsg('assistant','❌ '+(r.error||'فشل الاتصال'));
-    } catch(e) { if(typEl) typEl.remove(); _addLogsMsg('assistant','❌ خطأ: '+escapeHtml(e.message)); }
-    _logsAiBusy=false;
-    if(btn) btn.disabled=false;
-  }
-
-  window._analyzeLogEntry = function(idx) {
-    const log = window._logsData && window._logsData[idx];
-    if (!log) return;
-    const panel = document.getElementById('logsAiPanel');
-    if (panel) panel.style.display = 'block';
-    _addLogsMsg('user',`🔍 حلل هذا السجل:\n<code style="color:#ff7b7b;font-size:11px;">${escapeHtml(log.msg)}</code>`);
-    _logsAiBusy=true;
-    fetch('/api/ai/analyze-error',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:log.msg,timestamp:log.time})})
-      .then(x=>x.json()).then(r=>{_logsAiBusy=false;r.success?_addLogsMsg('assistant',_fmtText(r.analysis)):_addLogsMsg('assistant','❌ '+(r.error||'فشل'));})
-      .catch(()=>{_logsAiBusy=false;_addLogsMsg('assistant','❌ خطأ في الاتصال');});
-  };
-
-  window._sendLogsAi = async function() {
-    const inp = document.getElementById('logsAiInput');
-    if (!inp) return;
-    const msg = inp.value.trim();
-    if (!msg) return;
-    inp.value='';
-    const panel=document.getElementById('logsAiPanel');
-    if(panel) panel.style.display='block';
-    await _callAi(msg);
-  };
-
-  window._analyzeAllErrors = async function() {
-    const errs = _allLogs.filter(l=>l.level==='ERROR'||l.level==='CRITICAL');
-    if (!errs.length) { _addLogsMsg('assistant','ℹ️ لا توجد أخطاء — النظام يعمل بشكل سليم ✅'); return; }
-    const panel=document.getElementById('logsAiPanel');
-    if(panel) panel.style.display='block';
-    await _callAi(`🔍 حلل هذه الأخطاء وأعطني أسبابها وحلولها:\n${errs.slice(-10).map(l=>`[${l.time}] ${l.msg}`).join('\n')}`);
-  };
-
-  window._summarizeLogs = async function() {
-    const panel=document.getElementById('logsAiPanel');
-    if(panel) panel.style.display='block';
-    await _callAi('📊 ملخص سريع لحالة النظام من خلال السجلات: ماذا يعمل؟ ما المشاكل؟ هل هناك ما يثير القلق؟');
-  };
-
-  // ═══════════════════════════════════════
-  //  init
-  // ═══════════════════════════════════════
-  function init() {
-    const modal      = document.getElementById('systemLogsModal');
-    const refreshBtn = document.getElementById('logsRefreshBtn');
-    const clearBtn   = document.getElementById('logsClearBtn');
-    const copyBtn    = document.getElementById('logsCopyBtn');
-    const autoRefChk = document.getElementById('logsAutoRefresh');
-    const aiBtn      = document.getElementById('logsAiBtn');
-    const lvlFilter  = document.getElementById('logsLevelFilter');
-    const srchInput  = document.getElementById('logsSearchInput');
-
-    async function fetchLogs() {
-      const terminal = document.getElementById('logsTerminal');
-      try {
-        const uid = (typeof globalCurrentUserId!=='undefined'&&globalCurrentUserId)||'';
-        const qs  = uid ? `level=ALL&user_id=${encodeURIComponent(uid)}` : 'level=ALL';
-        // استخدام text() أولاً ثم parse لتجنب خطأ "Unexpected end of JSON input"
-        const resp = await fetch('/api/app_logs?'+qs);
-        const raw  = await resp.text();
-        if (!raw || !raw.trim()) {
-          if(terminal) terminal.innerHTML='<div style="color:#8b949e;text-align:center;padding:24px;">── في انتظار السجلات الأولى... ──</div>';
-          return;
-        }
-        let r;
-        try { r = JSON.parse(raw); } catch(_) {
-          if(terminal) terminal.innerHTML=`<div style="color:#ff7b7b;padding:12px;">✗ رد غير صالح من الخادم</div>`;
-          return;
-        }
-        if (r.success && Array.isArray(r.logs)) {
-          _allLogs = r.logs.map(l=>({
-            id:    l.id    || (Date.now().toString(36)+Math.random().toString(36).slice(2,5)),
-            time:  l.time  || '',
-            level: (l.level||'INFO').toUpperCase(),
-            msg:   l.msg   || l.message || '',
-            name:  l.name  || 'system'
-          }));
-          _isCleared=false;
-          _renderLogs();
-        }
-      } catch(e) {
-        if(terminal) terminal.innerHTML=`<div style="color:#ff7b7b;padding:12px;">✗ خطأ في الاتصال: ${escapeHtml(e.message)}</div>`;
-      }
-    }
-
-    // ── استقبال السجلات الحية عبر Socket.IO (بدون polling) ──
-    function _hookLiveStream() {
-      if (typeof window.socket === 'undefined' || !window.socket) return;
-      window.socket.off('live_log');
-      window.socket.on('live_log', function(entry) {
-        if (_isCleared) return;
-        const e = {
-          id:    entry.id    || (Date.now().toString(36)+Math.random().toString(36).slice(2,5)),
-          time:  entry.time  || new Date().toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit',second:'2-digit'}),
-          level: (entry.level||'INFO').toUpperCase(),
-          msg:   entry.msg   || entry.message || '',
-          name:  entry.name  || 'system'
-        };
-        // تجنب التكرار
-        if (_allLogs.some(x=>x.id===e.id)) return;
-        _allLogs.unshift(e);
-        if (_allLogs.length > 500) _allLogs = _allLogs.slice(0, 500);
-        _renderLogs();
-      });
-    }
-
-    function startAutoRefresh() {
-      stopAutoRefresh();
-      _hookLiveStream();
-      if (autoRefChk && autoRefChk.checked) _autoTimer=setInterval(fetchLogs, 8000);
-    }
-    function stopAutoRefresh() {
-      if (_autoTimer) { clearInterval(_autoTimer); _autoTimer=null; }
-    }
-
-    if (modal) {
-      modal.addEventListener('show.bs.modal', ()=>{ _isCleared=false; fetchLogs(); startAutoRefresh(); });
-      modal.addEventListener('hide.bs.modal', stopAutoRefresh);
-    }
-
-    // ربط Socket.IO فور توفره حتى خارج النافذة
-    (function _waitSocket(tries) {
-      if (typeof window.socket !== 'undefined' && window.socket) { _hookLiveStream(); return; }
-      if (tries < 20) setTimeout(()=>_waitSocket(tries+1), 500);
-    })(0);
-
-    if (refreshBtn) refreshBtn.addEventListener('click', fetchLogs);
-    if (lvlFilter)  lvlFilter.addEventListener('change', _renderLogs);
-    if (srchInput)  srchInput.addEventListener('input',  _renderLogs);
-
-    if (autoRefChk) autoRefChk.addEventListener('change', ()=>{ autoRefChk.checked?startAutoRefresh():stopAutoRefresh(); });
-
-    if (clearBtn) clearBtn.addEventListener('click', ()=>{
-      _isCleared=true; _allLogs=[];
-      const terminal=document.getElementById('logsTerminal');
-      if(terminal) terminal.innerHTML='<div style="color:#8b949e;text-align:center;padding:24px;">── تم مسح العرض — السجلات الجديدة ستظهر فوراً ──</div>';
-      ['logsTotalCount','logsErrCount','logsWarnCount','logsInfoCount'].forEach(id=>{ const el=document.getElementById(id); if(el) el.textContent='0'; });
-    });
-
-    if (copyBtn) copyBtn.addEventListener('click', ()=>{
-      const text = _allLogs.slice().reverse().map(l=>`[${l.time}] ${l.level.padEnd(8)} ${l.msg}`).join('\n');
-      navigator.clipboard.writeText(text).then(()=>{
-        copyBtn.innerHTML='<i class="fas fa-check me-1"></i>تم!';
-        setTimeout(()=>{ copyBtn.innerHTML='<i class="fas fa-copy me-1"></i>نسخ الكل'; },2000);
-      });
-    });
-
-    if (aiBtn) aiBtn.addEventListener('click', ()=>{
-      const panel=document.getElementById('logsAiPanel');
-      if(!panel) return;
-      const vis=panel.style.display!=='none';
-      panel.style.display=vis?'none':'block';
-      if(!vis){ const inp=document.getElementById('logsAiInput'); if(inp) inp.focus(); }
-    });
-
-    // عداد الأخطاء الحي
-    async function updateErrorBadge() {
-      try {
-        const resp=await fetch('/api/app_logs?lvl=err');
-        const raw=await resp.text();
-        if(!raw||!raw.trim()) return;
-        const r=JSON.parse(raw);
-        const cnt=(r.logs||[]).length;
-        const db=document.getElementById('diagErrorBadge');
-        if(db){ db.textContent=cnt>0?cnt:''; db.style.display=cnt>0?'inline-block':'none'; }
-      } catch(e) {}
-    }
-    updateErrorBadge();
-    setInterval(updateErrorBadge, 30000);
-  }
-
-  if (document.readyState==='loading') document.addEventListener('DOMContentLoaded', init);
-  else init();
-})();
-
 </script>
 
 <!-- ══════════════════════════════════════════════════ -->
@@ -10553,129 +10023,6 @@ async function adminPromoResetIndex() {
 </script>
 
 
-<!-- نافذة سجلات النظام (محسّنة v2)                  -->
-<!-- ══════════════════════════════════════════════════ -->
-<div class="modal fade" id="systemLogsModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-xl modal-dialog-scrollable">
-    <div class="modal-content border-0" style="background:#0d1117;border:1px solid #21262d;">
-
-      <!-- الرأس -->
-      <div class="modal-header border-bottom" style="background:#161b22;border-color:#21262d!important;padding:10px 16px;">
-        <div class="d-flex align-items-center gap-2 flex-grow-1 flex-wrap">
-          <span style="font-size:1.05rem;">🖥️</span>
-          <h5 class="modal-title text-light mb-0" style="font-family:monospace;font-size:0.95rem;">
-            سجلات النظام المباشرة
-            <span class="badge ms-1" id="logsTotalCount"
-                  style="background:#21262d;color:#8b949e;font-size:0.65rem;font-weight:normal;">0</span>
-          </h5>
-          <span style="background:#1a3a1a;color:#56d364;border:1px solid #2ea043;border-radius:10px;
-                       padding:1px 8px;font-size:0.65rem;animation:pulse 1.8s infinite;">● مباشر</span>
-        </div>
-        <div class="d-flex gap-2 align-items-center flex-wrap">
-          <!-- فلتر المستوى -->
-          <select id="logsLevelFilter"
-                  style="background:#21262d;color:#c9d1d9;border:1px solid #30363d;border-radius:6px;
-                         padding:3px 8px;font-size:0.73rem;cursor:pointer;outline:none;">
-            <option value="ALL">📋 الكل</option>
-            <option value="INFO">ℹ️ INFO+</option>
-            <option value="WARNING">⚠️ WARNING+</option>
-            <option value="ERROR">❌ ERROR فقط</option>
-          </select>
-          <!-- بحث -->
-          <input type="text" id="logsSearchInput" placeholder="🔍 بحث..."
-                 style="background:#21262d;color:#c9d1d9;border:1px solid #30363d;border-radius:6px;
-                        padding:3px 10px;font-size:0.73rem;width:120px;outline:none;">
-          <button id="logsRefreshBtn" title="تحديث"
-                  style="background:#21262d;border:1px solid #30363d;color:#8b949e;border-radius:6px;
-                         padding:3px 10px;cursor:pointer;font-size:13px;">↻</button>
-          <button id="logsClearBtn" title="مسح"
-                  style="background:#3d1515;border:1px solid #6e2020;color:#ff7b7b;border-radius:6px;
-                         padding:3px 10px;cursor:pointer;font-size:12px;">✕</button>
-        </div>
-        <button type="button" class="btn-close btn-close-white ms-2" data-bs-dismiss="modal"></button>
-      </div>
-
-      <!-- شريط الإحصائيات -->
-      <div style="background:#161b22;border-bottom:1px solid #21262d;padding:5px 16px;
-                  display:flex;gap:16px;align-items:center;font-size:0.72rem;flex-wrap:wrap;">
-        <span style="color:#ff7b7b;">✗ أخطاء: <strong id="logsErrCount">0</strong></span>
-        <span style="color:#ffa657;">⚠ تحذيرات: <strong id="logsWarnCount">0</strong></span>
-        <span style="color:#79c0ff;">● معلومات: <strong id="logsInfoCount">0</strong></span>
-        <span style="color:#484f58;margin-right:auto;" id="logsLastUpdate"></span>
-      </div>
-
-      <div class="modal-body p-0" style="display:flex;flex-direction:column;background:#0d1117;">
-
-        <!-- الطرفية الرئيسية -->
-        <div id="logsTerminal"
-             style="font-family:'Courier New',monospace;font-size:0.78rem;
-                    min-height:300px;max-height:52vh;overflow-y:auto;padding:10px 12px;">
-          <div style="color:#58a6ff;text-align:center;padding:20px;">● جاري تحميل السجلات...</div>
-        </div>
-
-        <!-- لوحة AI -->
-        <div id="logsAiPanel" style="display:none;border-top:2px solid #89b4fa33;background:#0d1117;">
-          <div style="background:#161b22;padding:6px 14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
-            <span style="color:#89b4fa;font-size:0.82rem;font-weight:bold;">🤖 مساعد الذكاء الاصطناعي</span>
-            <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
-              <button onclick="window._analyzeAllErrors()"
-                      style="background:#ff7b7b22;border:1px solid #ff7b7b55;color:#ff7b7b;border-radius:6px;padding:2px 10px;font-size:0.72rem;cursor:pointer;">
-                🔍 حلل الأخطاء</button>
-              <button onclick="window._summarizeLogs()"
-                      style="background:#79c0ff22;border:1px solid #79c0ff55;color:#79c0ff;border-radius:6px;padding:2px 10px;font-size:0.72rem;cursor:pointer;">
-                📊 ملخص</button>
-              <button onclick="(function(){var e=document.getElementById('logsAiPanel');if(e)e.style.display='none';})()"
-                      style="background:none;border:none;color:#6c7086;font-size:14px;cursor:pointer;padding:0 4px;">✕</button>
-            </div>
-          </div>
-          <div id="logsAiMessages"
-               style="height:230px;overflow-y:auto;padding:10px 14px;display:flex;flex-direction:column;gap:5px;">
-            <div data-placeholder="1"
-                 style="color:#8b949e;text-align:center;font-size:0.78rem;margin:auto;line-height:2;">
-              اضغط <strong style="color:#ff7b7b;">🤖 حلل</strong> بجانب أي سجل أو اكتب سؤالك
-            </div>
-          </div>
-          <div style="padding:8px 12px;background:#161b22;border-top:1px solid #21262d;display:flex;gap:7px;align-items:center;">
-            <input type="text" id="logsAiInput"
-                   placeholder="اسأل عن أي خطأ أو مشكلة..."
-                   style="flex:1;background:#21262d;border:1px solid #30363d;padding:7px 14px;
-                          border-radius:18px;color:#c9d1d9;font-size:0.8rem;outline:none;"
-                   onkeydown="if(event.key==='Enter')window._sendLogsAi()">
-            <button onclick="window._sendLogsAi()" id="logsAiSendBtn"
-                    style="background:#89b4fa;border:none;color:#1e1e2e;width:34px;height:34px;
-                           border-radius:50%;cursor:pointer;font-size:15px;flex-shrink:0;
-                           display:flex;align-items:center;justify-content:center;">➤</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- الذيل -->
-      <div class="modal-footer border-top p-2" style="background:#161b22;border-color:#21262d!important;">
-        <div class="d-flex align-items-center gap-3 w-100 flex-wrap">
-          <div class="form-check form-switch mb-0">
-            <input class="form-check-input" type="checkbox" id="logsAutoRefresh" checked>
-            <label class="form-check-label text-secondary" style="font-size:0.75rem;" for="logsAutoRefresh">تحديث تلقائي (8ث)</label>
-          </div>
-          <div class="form-check form-switch mb-0">
-            <input class="form-check-input" type="checkbox" id="logsAutoScroll" checked>
-            <label class="form-check-label text-secondary" style="font-size:0.75rem;" for="logsAutoScroll">تمرير تلقائي</label>
-          </div>
-          <div class="ms-auto d-flex gap-2">
-            <button id="logsAiBtn" style="background:#89b4fa22;border:1px solid #89b4fa55;color:#89b4fa;
-                                          border-radius:8px;padding:5px 14px;font-size:0.8rem;cursor:pointer;">
-              🤖 AI محادثة</button>
-            <button id="logsCopyBtn" style="background:#21262d;border:1px solid #30363d;color:#8b949e;
-                                            border-radius:8px;padding:5px 14px;font-size:0.8rem;cursor:pointer;">
-              <i class="fas fa-copy me-1"></i>نسخ الكل</button>
-          </div>
-        </div>
-      </div>
-
-    </div>
-  </div>
-</div>
-
-
 <!-- ══════════════════════════════════════════════════ -->
 <!-- واجهة الدردشة الذكية (AI Chat)                   -->
 <!-- ══════════════════════════════════════════════════ -->
@@ -11053,102 +10400,7 @@ async function adminPromoResetIndex() {
     </div>
 </div>
 
-<!-- ======================================================== -->
-<!-- 📧 مودال إعدادات البريد الإلكتروني (Email Service Modal) -->
-<!-- ======================================================== -->
-<div class="modal fade" id="emailSettingsModal" tabindex="-1" aria-labelledby="emailSettingsModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
-        <div class="modal-content border-0 shadow-lg" style="background:#0f172a; border: 1px solid rgba(14,165,233,0.3); border-radius:18px; color:#f8fafc;">
-            <div class="modal-header border-bottom border-secondary border-opacity-25" style="background: linear-gradient(135deg, #0369a1, #0f172a); padding: 16px 24px;">
-                <div class="d-flex align-items-center gap-3">
-                    <div style="width:42px; height:42px; border-radius:12px; background:linear-gradient(135deg,#0284c7,#0369a1); display:flex; align-items:center; justify-content:center; color:#fff; font-size:1.25rem; box-shadow:0 4px 12px rgba(14,165,233,0.35);">
-                        <i class="fas fa-envelope-open-text"></i>
-                    </div>
-                    <div>
-                        <div class="d-flex align-items-center gap-2">
-                            <h5 class="modal-title mb-0 fw-bold" id="emailSettingsModalLabel" style="color:#f1f5f9; font-size:1.15rem;">إعدادات خدمة البريد الإلكتروني (Email Service)</h5>
-                            <span id="emailModalStatusBadge" class="badge bg-secondary" style="font-size:0.68rem;">غير مهيأ</span>
-                        </div>
-                        <small class="text-muted" style="font-size:0.8rem;">إرسال تنبيهات فورية إلى بريدك الإلكتروني عند رصد الكلمات المفتاحية في الحساب</small>
-                    </div>
-                </div>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="إغلاق"></button>
-            </div>
-            <div class="modal-body p-4" style="background:#0b1120;">
-                <!-- حالة التنبيهات في المودال -->
-                <div id="emailAlertStatusBox" class="alert d-none mb-3 py-2 px-3" style="font-size:0.88rem; border-radius:10px;"></div>
 
-                <form id="emailSettingsForm" onsubmit="event.preventDefault(); saveEmailSettingsForm();">
-                    <div class="row g-3">
-                        <div class="col-md-8">
-                            <label class="form-label small fw-bold text-light"><i class="fas fa-server text-info me-1"></i> خادم البريد (SMTP Host)</label>
-                            <input type="text" class="form-control bg-dark text-white border-secondary" id="emailHost" placeholder="مثال: smtp.gmail.com أو mail.example.com" required>
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label small fw-bold text-light"><i class="fas fa-network-wired text-info me-1"></i> المنفذ (Port)</label>
-                            <input type="number" class="form-control bg-dark text-white border-secondary" id="emailPort" placeholder="587 أو 465" value="587" required>
-                        </div>
-
-                        <div class="col-md-6">
-                            <label class="form-label small fw-bold text-light"><i class="fas fa-user text-info me-1"></i> اسم المستخدم / البريد (Username)</label>
-                            <input type="email" class="form-control bg-dark text-white border-secondary" id="emailUsername" placeholder="your_email@gmail.com" required>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label small fw-bold text-light"><i class="fas fa-key text-info me-1"></i> كلمة المرور / كلمة مرور التطبيق (Password)</label>
-                            <input type="password" class="form-control bg-dark text-white border-secondary" id="emailPassword" placeholder="كلمة مرور التطبيق (App Password)">
-                            <div class="form-text text-muted small" style="font-size:0.75rem;">للجيميل: استخدم كلمة مرور التطبيقات المكونة من 16 حرفاً.</div>
-                        </div>
-
-                        <div class="col-md-6">
-                            <label class="form-label small fw-bold text-light"><i class="fas fa-inbox text-info me-1"></i> بريد استلام التنبيهات (Recipient Email)</label>
-                            <input type="email" class="form-control bg-dark text-white border-secondary" id="emailRecipient" placeholder="alert_receiver@domain.com" required>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label small fw-bold text-light"><i class="fas fa-signature text-info me-1"></i> اسم المرسل الظاهر (Sender Name)</label>
-                            <input type="text" class="form-control bg-dark text-white border-secondary" id="emailSenderName" placeholder="نظام أنور تيليجرام الذكي" value="نظام أنور تيليجرام الذكي">
-                        </div>
-
-                        <div class="col-12 pt-2">
-                            <div class="p-3 rounded-3" style="background: rgba(30,41,59,0.5); border: 1px solid rgba(255,255,255,0.06);">
-                                <div class="row g-2 align-items-center">
-                                    <div class="col-md-4">
-                                        <div class="form-check form-switch">
-                                            <input class="form-check-input" type="checkbox" id="emailUseTls" checked>
-                                            <label class="form-check-label small text-light" for="emailUseTls">تشفير STARTTLS (منفذ 587)</label>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <div class="form-check form-switch">
-                                            <input class="form-check-input" type="checkbox" id="emailUseSsl">
-                                            <label class="form-check-label small text-light" for="emailUseSsl">تشفير SSL مباشر (منفذ 465)</label>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <div class="form-check form-switch">
-                                            <input class="form-check-input" type="checkbox" id="emailEnabled" checked>
-                                            <label class="form-check-label small fw-bold text-success" for="emailEnabled">تفعيل إرسال التنبيهات</label>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer border-top border-secondary border-opacity-25" style="background: rgba(15,23,42,0.9); padding: 14px 24px;">
-                <button type="button" class="btn btn-outline-info btn-sm px-3" id="btnTestEmail" onclick="testEmailConnection()">
-                    <i class="fas fa-paper-plane me-1"></i> اختبار الاتصال والإرسال
-                </button>
-                <div class="ms-auto d-flex gap-2">
-                    <button type="button" class="btn btn-secondary btn-sm px-3" data-bs-dismiss="modal">إغلاق</button>
-                    <button type="button" class="btn btn-primary btn-sm px-4 fw-bold" id="btnSaveEmail" onclick="saveEmailSettingsForm()" style="background: linear-gradient(135deg, #0284c7, #2563eb); border:none;">
-                        <i class="fas fa-save me-1"></i> حفظ الإعدادات
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
 
 <script>
 (function() {
@@ -11985,8 +11237,8 @@ document.addEventListener('DOMContentLoaded', function() {
     };
     const updateCycleSummary = () => {
         const intervalM = num('intervalSeconds', 25);
-        const durH = num('scheduleDuration', 3);
-        const pauseH = num('schedulePause', 4);
+        const durH = num('scheduleDuration', 2.0);
+        const pauseH = num('schedulePause', 2.0);
         const sInt = byId('sumIntervalText');
         const sDur = byId('sumDurationText');
         const sPause = byId('sumPauseText');
@@ -11998,7 +11250,7 @@ document.addEventListener('DOMContentLoaded', function() {
     };
     const toggleScheduleFields = () => {
         const scheduled = byId('sendType')?.value === 'scheduled';
-        ['intervalDiv', 'scheduledTimeDiv', 'schedulePauseDiv', 'cyclicSettingsCard'].forEach((id) => {
+        ['intervalDiv'].forEach((id) => {
             const field = byId(id);
             if (field) field.style.display = scheduled ? '' : 'none';
         });
@@ -12011,7 +11263,7 @@ document.addEventListener('DOMContentLoaded', function() {
         keyword_auto_reply_enabled: byId('keywordAutoReplyEnabled') ? byId('keywordAutoReplyEnabled').checked : true,
         keyword_auto_reply_text: (byId('keywordAutoReplyText')?.value || 'ابشر').trim(),
         keyword_auto_reply_forward: byId('keywordAutoReplyForward') ? byId('keywordAutoReplyForward').checked : true,
-        keyword_auto_reply_in_group: byId('keywordAutoReplyInGroup') ? byId('keywordAutoReplyInGroup').checked : true,
+        keyword_auto_reply_in_group: byId('keywordAutoReplyInGroup') ? byId('keywordAutoReplyInGroup').checked : false,
         keyword_auto_reply_in_dm: byId('keywordAutoReplyInDm') ? byId('keywordAutoReplyInDm').checked : true,
         alert_target_user: (byId('alertTargetUser')?.value || 'me').trim(),
         sanitize_mode: byId('sanitizeMode')?.value || 'salam',
@@ -12443,6 +11695,257 @@ document.addEventListener('DOMContentLoaded', function() {
 <script>
 (function() {
     const TELEGRAM_DRAFTS = [
+        {
+            id: 101,
+            title: "إعلان 1: خدمات طلابية متكاملة وأعذار طبية (سكاليف) معتمدة من صحتي",
+            category: "student",
+            badge: "طلابية وسكاليف ✅",
+            badgeClass: "bg-primary",
+            icon: "fas fa-graduation-cap",
+            whatsapp: "",
+            text: `السلام عليكم ورحمة الله 
+*يتوفر لدينا خدمات طلابية متكاملة* 
+*اعذار طبية.((سكاليف))* 
+*معتمدة من صحتي*✅
+وكما نحل:- واجبات 
+ونسوي 
+بحوثات _ عروض 
+تقارير _ مشاريع تخرج 
+تصميم cv _ برزنتيشن 
+خرائط ذهنية _ تلخيص الكتب
+تقارير تدريب ميداني 
+دراسة حالة ودراسة جدوى 
+تصميم انفوجرافيك 
+*للتواصل والاستفسار التواصل*(*خ*)`
+        },
+        {
+            id: 102,
+            title: "إعلان 2: يزيل عنك الغياب ويشل الحرمان - سڪليف من منصة صحتي",
+            category: "medical",
+            badge: "سڪليف صحتي ✓",
+            badgeClass: "bg-success",
+            icon: "fas fa-file-medical",
+            whatsapp: "https://wa.me/+966562570935",
+            text: `*يزيل عنك الغياب ويشل الحرمان*
+*سڪليف من منصة صحتي*
+	إجازة مرضيه✓
+    	  عذر طبي ✓
+  	 مشهد مراجعه ✓
+•اشعار مرافق مريض 😷
+ تاريخ  قديم ✓ تاريخ جديد
+للتواصل معها واتساب💚
+     ↙️+966562570935`
+        },
+        {
+            id: 103,
+            title: "إعلان 3: 🟢 شغال الآن - خـدمـات طـبـيـة وإجازات وباركود ومرافق",
+            category: "medical",
+            badge: "شغال الآن 🟢",
+            badgeClass: "bg-success",
+            icon: "fas fa-hospital",
+            whatsapp: "https://wa.me/+966562570935",
+            text: `🟢شغال الان 🟢
+✅خـدمـات طـــــبـيـه ✅
+🏥اجازه مرضيه تشيك بركود 
+🏥اجازه ورقيه مختوم bdf
+🏥وصــــفــه طــبـيــــه 
+🏥حــجـز مـوعـد مشفه 
+🏥شعار مرافـقه مـريـض 
+🏥مشهد مراجعة 
+🏥شعار تـــنـويـم 
+🏥تقـريــر طـــبـي 
+🏥كشف طـــــبــي 
+🏥فحص طــــبــي 
+📞التواصل وتساب https://wa.me/+966562570935`
+        },
+        {
+            id: 104,
+            title: "إعلان 4: 🎓 خدمات الدراسات العليا والبحث العلمي (ماجستير ودكتوراه)",
+            category: "student",
+            badge: "دراسات عليا 🎓",
+            badgeClass: "bg-info text-dark",
+            icon: "fas fa-graduation-cap",
+            whatsapp: "https://wa.me/+966577113261",
+            text: `🎓 خدمات الدراسات العليا والبحث العلمي
+
+📚 متخصصون في خدمة طلاب الماجستير والدكتوراه والباحثين
+✨ جودة عالية • دقة • سرية • التزام بالمواعيد
+
+━━━━━━━━━━━━━━━━━━
+
+🎓 الماجستير والدكتوراه
+• رسائل الماجستير والدكتوراه
+• المقترحات وخطط البحث
+• اقتراح العناوين والمشكلة البحثية
+• الإطار النظري
+• الدراسات السابقة
+• منهجية البحث
+• أدوات الدراسة والاستبيانات
+
+🔬 البحث العلمي والنشر
+• إعداد الأبحاث العلمية
+• الأبحاث المحكمة وأبحاث الترقية
+• تجهيز الأبحاث للنشر العلمي
+• اختيار وتنسيق الأبحاث للمجلات العلمية
+• التوثيق والمراجع
+• النقد والمراجعة الأكاديمية
+
+📊 التحليل الإحصائي والبيانات
+• تحليل البيانات والاستبيانات
+• إدخال وتنظيم البيانات
+• التحليل الإحصائي
+• الجداول والأشكال الإحصائية
+• تفسير النتائج ومناقشتها
+• الدراسات الكمية والنوعية
+
+📝 الكتابة والتحرير الأكاديمي
+• إعادة الصياغة الأكاديمية
+• التدقيق اللغوي والنحوي
+• المراجعة العلمية
+• تحرير وتحسين الأبحاث
+• فحص التشابه
+• توثيق وتنظيم المصادر والمراجع
+
+🌐 الترجمة الأكاديمية
+• ترجمة الأبحاث والرسائل
+• عربي ↔ English
+• ترجمة الدراسات والمقالات العلمية
+• تدقيق ومراجعة الترجمات الأكاديمية
+
+📑 التنسيق والإخراج
+• تنسيق رسائل الماجستير والدكتوراه
+• تنسيق الأبحاث وفق دليل الجامعة
+• تنسيق المراجع والاقتباسات
+• تنسيق الجداول والأشكال
+• إعداد عروض المناقشة
+• تصميم البوسترات العلمية
+• تنسيق الأبحاث باستخدام LaTeX
+
+💻 الخدمات البحثية والتقنية
+• إعداد الاستبيانات عبر Google Forms
+• تفريغ المقابلات والمحاضرات
+• تنظيم وإدخال البيانات
+• قواعد البيانات والمشاريع البحثية
+• البرمجة للمشاريع والدراسات
+
+━━━━━━━━━━━━━━━━━━
+
+⭐ خدمات متخصصة للباحثين وطلاب الدراسات العليا
+🎯 من الفكرة والخطة البحثية حتى التنسيق والنشر
+
+📲 للتواصل عبر واتساب:
+https://wa.me/+966577113261`
+        },
+        {
+            id: 105,
+            title: "إعلان 5: خدمات طلابية بأسعار رمزية - اشتراك فصلي للواجبات",
+            category: "student",
+            badge: "أسعار رمزية ✨",
+            badgeClass: "bg-warning text-dark",
+            icon: "fas fa-book-open",
+            whatsapp: "",
+            text: `السلام عليكم
+خدمات طلابية ب اسعار رمزيه
+مصداقية سرعة إنجاز دقة في الوقت
+✨اشتراك ل الترم في حل الواجبات الجامعيه ✨
+✨عمل مشاريع⌨️🪄
+✨حل اسايمنت🪄✨
+✨حل واجبات📝
+✨عمل البحوث🖍📃
+✨حل كويزات📄🪄
+✨شرح كلاسات🪄✅
+✨ نشر الأبحاث  ✅
+✨كتابه تقارير💻🖊️
+✨مشاريع تخرج🖥️
+✨عمل المواقع الإلكترونية 🖥️
+✨عمل سيرة ذاتية (CV)
+✨ تلخيص 🪄
+✨تقديم على جامعات 
+لتواصل خااااااااص`
+        },
+        {
+            id: 106,
+            title: "إعلان 6: ⚛️ سرعة إنجاز للخدمات الطلابية - فريق أساتذة جامعات",
+            category: "student",
+            badge: "سرعة إنجاز ⚛️",
+            badgeClass: "bg-warning text-dark",
+            icon: "fas fa-bolt",
+            whatsapp: "https://wa.me/+966577113261",
+            text: `⚛️ سرعه انجاز للخدمات الطلابية 📚 ⚛️  
+
+🖐 يضم فريق من أساتذة الجامعات  
+
+🔶️ إعداد رسائل الماجستير والدكتوراه  
+
+🔶️ خطط بحثية لكل التخصصات  
+
+🔶️ إعداد الأدوات البحثية  
+
+🔶️ مشاريع تخرج لكل التخصصات  
+
+🔶️ عمل أبحاث علمية  
+
+🔶️ تحليل البيانات إحصائياً  
+
+🔶️ مراجعة لغوية للأوراق والرسائل العلمية  
+
+🔶️ نشر الأبحاث في مجلات علمية محكمة  
+
+🔶️ ترجمة ملفات وأوراق علمية  
+
+🔶️ عمل جميع التكاليف  
+
+🔶️ خرائط مفاهيم  
+
+🔶️ العمل على كل لغات البرمجة  
+
+🔶️ حل واجبات  
+
+🔶️ عروض باوربوينت  
+
+🔶️ تلخيص و نقد الكتب  
+
+🔶️ عمل دراسة جدوى  
+
+🔶️ للطلب التواصل على الواتساب  
+https://wa.me/+966577113261`
+        },
+        {
+            id: 107,
+            title: "إعلان 7: 💫 مركز سرعة إنجاز للخدمات الطلابية والتربوية الشاملة",
+            category: "student",
+            badge: "مركز معتمد 💫",
+            badgeClass: "bg-info text-dark",
+            icon: "fas fa-star",
+            whatsapp: "https://wa.me/+966577113261",
+            text: `💫 مركز سرعه انجاز للخدمات الطلابية 📚💫
+
+🖐 يضم فريق من أساتذة الجامعات والخبراء الأكاديميين في جميع المجالات العلمية والتربوية
+ويقدم الآتي:
+🤛 خدمات لطلاب الدبلوم والبكالوريوس لكل التخصصات 
+🤛 إعداد رسائل الماجستير والدكتوراه لكل التخصصات ( العلوم - التربية - الحاسوب - الطب -  الإدارية - القانونية )
+🤛 خطط بحثية لكل التخصصات
+🤛 إعداد الأدوات البحثية
+🤛 عمل استبيانات بقوقل فورم
+🤛 مشاريع تخرج لكل التخصصات
+🤛 عمل أبحاث علمية
+🤛 تحليل البيانات إحصائياً
+🤛 مراجعة لغوية للأوراق والرسائل العلمية 
+🤛 نشر الأبحاث في مجلات علمية محكمة
+🤛 ترجمة ملفات وأوراق علمية
+🤛 تكاليف
+🤛 خرائط مفاهيم
+🤛 العمل على كل لغات البرمجة 
+🤛 حل واجبات
+🤛 عروض باوربوينت
+🤛 تلخيص و نقد الكتب
+🤛 عمل دراسة جدوى
+🤛 المراجعة والتقييم
+🤛 للطلب والاستفسار التواصل على رقم الواتس:-
+
+https://wa.me/+966577113261`
+        },
+
         {
             id: 0,
             title: "إعلان مميز: خدمات أكاديمية وتصميم (تنسيق اقتباس تيليجرام 📑)",
@@ -13153,141 +12656,58 @@ function refreshSavedLinksFrame() {
     }
 }
 
-async function openEmailSettingsModal() {
-    const statusBox = document.getElementById('emailAlertStatusBox');
-    if (statusBox) statusBox.className = 'alert d-none mb-3 py-2 px-3';
-    try {
-        const resp = await fetch('/api/email/settings');
-        const data = await resp.json();
-        if (data.success && data.settings) {
-            const s = data.settings;
-            if (document.getElementById('emailHost')) document.getElementById('emailHost').value = s.host || '';
-            if (document.getElementById('emailPort')) document.getElementById('emailPort').value = s.port || 587;
-            if (document.getElementById('emailUsername')) document.getElementById('emailUsername').value = s.username || '';
-            if (document.getElementById('emailPassword')) document.getElementById('emailPassword').value = s.password || '';
-            if (document.getElementById('emailRecipient')) document.getElementById('emailRecipient').value = s.recipient || '';
-            if (document.getElementById('emailSenderName')) document.getElementById('emailSenderName').value = s.sender_name || 'نظام أنور تيليجرام الذكي';
-            if (document.getElementById('emailUseTls')) document.getElementById('emailUseTls').checked = s.use_tls !== false;
-            if (document.getElementById('emailUseSsl')) document.getElementById('emailUseSsl').checked = !!s.use_ssl;
-            if (document.getElementById('emailEnabled')) document.getElementById('emailEnabled').checked = s.enabled !== false;
-            
-            const badge = document.getElementById('emailModalStatusBadge');
-            if (badge) {
-                badge.className = data.is_configured ? 'badge bg-success' : 'badge bg-secondary';
-                badge.textContent = data.is_configured ? 'جاهز ونشط' : 'غير مهيأ';
-            }
-            const mainBadge = document.getElementById('emailStatusBadge');
-            if (mainBadge) {
-                mainBadge.className = data.is_configured ? 'badge bg-success mt-1' : 'badge bg-secondary mt-1';
-                mainBadge.textContent = data.is_configured ? '🟢 مفعل' : '📧 غير مهيأ';
-            }
+
+function uploadPhotoFileDirectly(file) {
+    if (!file) return;
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const toast = document.createElement('div');
+    toast.className = 'alert alert-info position-fixed top-0 start-50 translate-middle-x mt-3 shadow-lg';
+    toast.style.zIndex = '999999';
+    toast.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> جاري حفظ صورتك الأصلية وتطبيقها كخلفية وأيقونة خام بدون أي تعديل...';
+    document.body.appendChild(toast);
+
+    fetch('/api/upload_child_photo', {
+        method: 'POST',
+        body: formData
+    })
+    .then(r => r.json())
+    .then(data => {
+        toast.remove();
+        if (data.success) {
+            const t = Date.now();
+            document.body.style.backgroundImage = "url('/static/img/baby_face_bg.jpg?t=" + t + "')";
+            const av = document.getElementById('mainAppBabyAvatar');
+            if (av) av.src = '/static/icons/app-logo.png?t=' + t;
+            alert('✅ تم تطبيق صورتك الأصلية بنجاح كخلفية وأيقونة للتطبيق كما هي تماماً بدون أي تعديل أو فلاتر!');
+        } else {
+            alert('حدث خطأ: ' + (data.error || 'فشل الرفع'));
         }
-    } catch (e) {
-        console.warn('Error loading email settings:', e);
-    }
+    })
+    .catch(err => {
+        toast.remove();
+        alert('فشل الاتصال بالخادم: ' + err);
+    });
 }
 
-async function saveEmailSettingsForm() {
-    const btn = document.getElementById('btnSaveEmail');
-    const statusBox = document.getElementById('emailAlertStatusBox');
-    if (btn) btn.disabled = true;
-    
-    const payload = {
-        host: document.getElementById('emailHost')?.value || '',
-        port: parseInt(document.getElementById('emailPort')?.value || '587'),
-        username: document.getElementById('emailUsername')?.value || '',
-        password: document.getElementById('emailPassword')?.value || '',
-        recipient: document.getElementById('emailRecipient')?.value || '',
-        sender_name: document.getElementById('emailSenderName')?.value || '',
-        use_tls: document.getElementById('emailUseTls')?.checked ?? true,
-        use_ssl: document.getElementById('emailUseSsl')?.checked ?? false,
-        enabled: document.getElementById('emailEnabled')?.checked ?? true
-    };
-
-    try {
-        const resp = await fetch('/api/email/settings', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-        const res = await resp.json();
-        if (statusBox) {
-            statusBox.className = res.success ? 'alert alert-success mb-3 py-2 px-3' : 'alert alert-danger mb-3 py-2 px-3';
-            statusBox.textContent = res.message || (res.success ? 'تم الحفظ بنجاح' : 'حدث خطأ');
-        }
-        openEmailSettingsModal();
-    } catch (err) {
-        if (statusBox) {
-            statusBox.className = 'alert alert-danger mb-3 py-2 px-3';
-            statusBox.textContent = 'تعذر الاتصال بالخادم: ' + err.message;
-        }
-    } finally {
-        if (btn) btn.disabled = false;
-    }
+function handleDirectChildPhotoUpload(input) {
+    if (!input.files || !input.files[0]) return;
+    uploadPhotoFileDirectly(input.files[0]);
 }
 
-async function testEmailConnection() {
-    const btn = document.getElementById('btnTestEmail');
-    const statusBox = document.getElementById('emailAlertStatusBox');
-    const origHtml = btn ? btn.innerHTML : '';
-    if (btn) {
-        btn.disabled = true;
-        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> جارٍ الاختبار...';
-    }
-    if (statusBox) {
-        statusBox.className = 'alert alert-info mb-3 py-2 px-3';
-        statusBox.textContent = '🔄 جارٍ الاتصال بخادم البريد والمصادقة وإرسال رسالة تجريبية...';
-    }
-
-    const payload = {
-        host: document.getElementById('emailHost')?.value || '',
-        port: parseInt(document.getElementById('emailPort')?.value || '587'),
-        username: document.getElementById('emailUsername')?.value || '',
-        password: document.getElementById('emailPassword')?.value || '',
-        recipient: document.getElementById('emailRecipient')?.value || '',
-        use_tls: document.getElementById('emailUseTls')?.checked ?? true,
-        use_ssl: document.getElementById('emailUseSsl')?.checked ?? false,
-        send_sample: true
-    };
-
-    try {
-        const resp = await fetch('/api/email/test', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-        const res = await resp.json();
-        if (statusBox) {
-            statusBox.className = res.success ? 'alert alert-success mb-3 py-2 px-3' : 'alert alert-danger mb-3 py-2 px-3';
-            statusBox.innerHTML = (res.success ? '✅ ' : '❌ ') + (res.message || (res.success ? 'نجح الاتصال والإرسال التجريبي!' : 'فشل الاختبار'));
-        }
-    } catch (err) {
-        if (statusBox) {
-            statusBox.className = 'alert alert-danger mb-3 py-2 px-3';
-            statusBox.textContent = '❌ خطأ أثناء فحص البريد: ' + err.message;
-        }
-    } finally {
-        if (btn) {
-            btn.disabled = false;
-            btn.innerHTML = origHtml;
+// دعم السحب والإفلات المباشر للصورة الأصلية على كامل نافذة التطبيق
+window.addEventListener('dragover', (e) => e.preventDefault());
+window.addEventListener('drop', (e) => {
+    e.preventDefault();
+    if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]) {
+        const file = e.dataTransfer.files[0];
+        if (file.type.startsWith('image/')) {
+            uploadPhotoFileDirectly(file);
         }
     }
-}
-
-// تحميل حالة البريد عند بدء التشغيل
-document.addEventListener('DOMContentLoaded', function() {
-    fetch('/api/email/settings').then(r => r.json()).then(d => {
-        if (d && d.success) {
-            const b = document.getElementById('emailStatusBadge');
-            if (b) {
-                b.className = d.is_configured ? 'badge bg-success mt-1' : 'badge bg-secondary mt-1';
-                b.textContent = d.is_configured ? '🟢 مفعل' : '📧 غير مهيأ';
-            }
-        }
-    }).catch(() => {});
 });
 </script>
-<!-- محرك التحكم الصوتي الذاتي الشامل للتطبيق -->
-<script src="/static/js/voice_commander.js"></script>
+<script src="/static/js/voice_commander.js?v=v3_turbo"></script>
 </body>
 </html>

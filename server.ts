@@ -33,6 +33,7 @@ const TDLIB_API_HASH = process.env.TDLIB_API_HASH || TELEGRAM_API_HASH;
 const SESSION_SECRET = process.env.SESSION_SECRET || 'tg_session_anwer_foud_secure_key_2026';
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 const GROQ_API_KEY = process.env.GROQ_API_KEY || '';
+const RENDER_DEPLOY_HOOK = process.env.RENDER_DEPLOY_HOOK || process.env.RENDER_DEPLOY_HOOK_URL || 'https://api.render.com/deploy/srv-davr5su7bikc73f5978g?key=hZAEDlsJijM';
 
 const DC_CLUSTERS = [
   { id: 1, name: 'DC1 - Miami (Production)', ip: '149.154.175.50', port: 443 },
@@ -149,6 +150,97 @@ async function startServer() {
         thisDc: 4,
       },
     });
+  });
+
+  // Render Deploy Hook Trigger Route
+  app.all('/api/render/deploy', async (req, res) => {
+    try {
+      const hookUrl = (req.body && req.body.hook_url) || RENDER_DEPLOY_HOOK;
+      const resp = await fetch(hookUrl, { method: 'POST' });
+      const body = await resp.text();
+      res.json({
+        success: resp.ok,
+        status: resp.status,
+        message: resp.ok ? 'Render deploy hook triggered successfully' : 'Failed to trigger Render deploy hook',
+        response: body,
+      });
+    } catch (err: any) {
+      res.status(500).json({
+        success: false,
+        error: err?.message || String(err),
+      });
+    }
+  });
+
+  // Saved Phone Numbers API (Permanent Numbers & Cache)
+  app.get('/api/saved_phone_numbers', (req, res) => {
+    try {
+      const phonesPath = path.join(process.cwd(), 'data', 'saved_phones.json');
+      if (fs.existsSync(phonesPath)) {
+        const raw = fs.readFileSync(phonesPath, 'utf8');
+        const phones = JSON.parse(raw);
+        return res.json({ success: true, phones });
+      }
+      res.json({ success: true, phones: [] });
+    } catch (e: any) {
+      res.json({ success: false, error: e?.message, phones: [] });
+    }
+  });
+
+  app.post('/api/saved_phone_numbers/add', (req, res) => {
+    try {
+      const { phone, label, account_name } = req.body || {};
+      if (!phone) return res.status(400).json({ success: false, message: 'Phone is required' });
+      const phonesPath = path.join(process.cwd(), 'data', 'saved_phones.json');
+      let list: any[] = [];
+      if (fs.existsSync(phonesPath)) {
+        list = JSON.parse(fs.readFileSync(phonesPath, 'utf8'));
+      }
+      const cleanInput = String(phone).replace(/[^0-9]/g, '');
+      const existing = list.find((p) => String(p.phone_number || '').replace(/[^0-9]/g, '') === cleanInput);
+      if (existing) {
+        if (label) existing.label = label;
+        if (account_name) existing.account_name = account_name;
+      } else {
+        list.push({
+          phone_number: String(phone).startsWith('+') ? String(phone) : `+${phone}`,
+          is_default: true,
+          label: label || account_name || 'حساب محفوظ',
+          account_name: account_name || label || 'حساب محفوظ',
+          added_at: new Date().toISOString(),
+        });
+      }
+      fs.writeFileSync(phonesPath, JSON.stringify(list, null, 2), 'utf8');
+      res.json({ success: true, phones: list });
+    } catch (e: any) {
+      res.status(500).json({ success: false, error: e?.message });
+    }
+  });
+
+  app.get('/api/latest_verification_code', (req, res) => {
+    try {
+      const qPhone = (req.query.phone as string) || '';
+      const cleanQ = qPhone.replace(/[^0-9]/g, '');
+      const codesPath = path.join(process.cwd(), 'data', 'verification_codes.json');
+      if (fs.existsSync(codesPath)) {
+        const raw = fs.readFileSync(codesPath, 'utf8');
+        const list = JSON.parse(raw);
+        if (Array.isArray(list) && list.length > 0) {
+          const match = list.find((c: any) => {
+            const bodyStr = `${c.body || ''} ${c.subject || ''}`;
+            const matchDigits = bodyStr.replace(/[^0-9]/g, '');
+            return cleanQ ? matchDigits.includes(cleanQ) : true;
+          }) || list[0];
+          const codeMatch = match.body?.match(/(?:كود|رمز|code|Code)[^\d]*(\d{5})/i) || match.subject?.match(/\[\s*(\d{5})\s*\]/);
+          if (codeMatch && codeMatch[1]) {
+            return res.json({ has_code: true, data: { code: codeMatch[1], full: match } });
+          }
+        }
+      }
+      res.json({ has_code: false, data: null });
+    } catch (e: any) {
+      res.json({ has_code: false, error: e?.message });
+    }
   });
 
   // 3. Ping Latency Tester (ping_delay_disconnect RPC)
@@ -1294,9 +1386,20 @@ async function startServer() {
         createdAt: Date.now(),
       });
 
+      // إرسال إشعار فوري للبريد الإلكتروني مترافقاً مع وصوله إلى الجهاز الآخر
+      fetch('http://127.0.0.1:3000/api/internal/notify_code_dispatch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: formattedPhone,
+          deliveryType: isAppDelivery ? 'app' : 'sms',
+          recipient: 'anwrfwad178@gmail.com',
+        }),
+      }).catch(() => {});
+
       const messageDescription = isAppDelivery
-        ? 'تم إرسال رمز تسجيل الدخول الرسمي الآن من خوادم تيليجرام كإشعار/رسالة في تطبيق تيليجرام على أجهزتك الأخرى'
-        : 'تم إرسال رمز تسجيل الدخول الرسمي عبر رسالة نصية قصيرة SMS إلى هاتفك';
+        ? 'تم إرسال رمز تسجيل الدخول الرسمي الآن من خوادم تيليجرام كإشعار في تطبيق تيليجرام على أجهزتك الأخرى وبالترافق مع بريدك الإلكتروني معاً'
+        : 'تم إرسال رمز تسجيل الدخول الرسمي عبر رسالة نصية قصيرة SMS إلى هاتفك وبالترافق مع بريدك الإلكتروني معاً';
 
       return res.json({
         success: true,

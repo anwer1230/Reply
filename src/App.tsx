@@ -1,153 +1,318 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
+import React, { useState, useEffect } from 'react';
+import {
+  MessageSquare,
+  Sparkles,
+  Key,
+  Clock,
+  Radar,
+  Brain,
+  TrendingUp,
+  CheckCircle,
+  Radio,
+  Sliders,
+  ShieldCheck,
+} from 'lucide-react';
+import { Rule, AppPreferencesState } from './types';
+import { repository } from './core/storage';
+import { WhatsAppDashboard } from './components/screens/WhatsAppDashboard';
+import { AISettingsTab } from './components/screens/AISettingsTab';
+import { ScheduledMessagesTab } from './components/screens/ScheduledMessagesTab';
+import { GroupRadarTab } from './components/screens/GroupRadarTab';
+import { LearningBotMemoryTab } from './components/screens/LearningBotMemoryTab';
+import { PatternAnalyzerTab } from './components/screens/PatternAnalyzerTab';
+import { WhatsAppRulesTab } from './components/screens/WhatsAppRulesTab';
 
-import React from 'react';
-import { TelegramProvider, useTelegram } from './context/TelegramContext';
-import { GlobalErrorBoundary } from './components/Common/GlobalErrorBoundary';
-import { Sidebar } from './components/Sidebar/Sidebar';
-import { ChatView } from './components/Chat/ChatView';
-import { ChatInfoPanel } from './components/RightPanel/ChatInfoPanel';
-import { NavigationDrawer } from './components/Sidebar/NavigationDrawer';
-import { ApiConfigModal } from './components/Modals/ApiConfigModal';
-import { SettingsModal } from './components/Modals/SettingsModal';
-import { CallModal } from './components/Modals/CallModal';
-import { MediaViewerModal } from './components/Modals/MediaViewerModal';
-import { NewChatModal } from './components/Modals/NewChatModal';
-import { AddAccountModal } from './components/Modals/AddAccountModal';
-import { JoinInviteModal } from './components/Modals/JoinInviteModal';
-import { ApkInstallerModal } from './components/Modals/ApkInstallerModal';
-import { MiniAppsModal } from './components/Modals/MiniAppsModal';
-import { ThemeEditorModal } from './components/Modals/ThemeEditorModal';
-import { ExportChatModal } from './components/Modals/ExportChatModal';
-import { ContactsModal } from './components/Modals/ContactsModal';
-import { LinkMonitorModal } from './components/Modals/LinkMonitorModal';
-import { SendOnlyModal } from './components/Modals/SendOnlyModal';
-import { PremiumModal } from './components/Modals/PremiumModal';
-import { SecretChatInfoModal } from './components/Modals/SecretChatInfoModal';
-import { GroupAdminModal } from './components/Modals/GroupAdminModal';
-import { ForumTopicsModal } from './components/Modals/ForumTopicsModal';
-import { SenderModal } from './components/Modals/SenderModal';
-import { MonitorModal } from './components/Modals/MonitorModal';
-import { MyMessagesModal } from './components/Modals/MyMessagesModal';
-import { AutoJoinerModal } from './components/Modals/AutoJoinerModal';
-import { AutoResponderModal } from './components/Modals/AutoResponderModal';
-import { LiveLinkDiscoverModal } from './components/Modals/LiveLinkDiscoverModal';
-import { UserProfileModal } from './components/Modals/UserProfileModal';
-import { UrlConfirmModal } from './components/Modals/UrlConfirmModal';
-import { ForwardModal } from './components/Interactions/ForwardModal';
-import { ChatContextMenuView } from './components/Interactions/ChatContextMenu';
-import { MessageContextMenuView } from './components/Interactions/MessageContextMenu';
-import { ToastContainer } from './components/Interactions/ToastContainer';
-import { InAppNotificationBanner } from './components/Notifications/InAppNotificationBanner';
-import { TelegramAuthScreen } from './components/Auth/TelegramAuthScreen';
-import { useMobileNavigation } from './hooks/useMobileNavigation';
-
-const TelegramAppContent: React.FC = () => {
-  const { isAuthenticated, inAppNotifications, dismissNotification, activeModal, setActiveModal } = useTelegram();
-
-  // Activate mobile hardware back button, touch navigation & popstate stack
-  useMobileNavigation();
-
-  if (!isAuthenticated) {
-    return (
-      <div id="tg-auth-wrapper" className="w-screen h-screen min-h-screen bg-[#0e1621] text-white overflow-hidden relative select-none">
-        <TelegramAuthScreen />
-        <ToastContainer />
-      </div>
-    );
-  }
-
-  return (
-    <div
-      id="tg-app-root"
-      className="fixed inset-0 w-full h-full h-[100dvh] flex overflow-hidden font-sans select-none"
-      style={{
-        backgroundColor: 'var(--tg-theme-bg)',
-      }}
-    >
-      {/* Left Sidebar (Chats, Folders, Search) */}
-      <Sidebar />
-
-      {/* Center Chat Feed / Message View */}
-      <ChatView />
-
-      {/* Right Shared Media & Details Info Panel */}
-      <ChatInfoPanel />
-
-      {/* Drawer Slide-out Menu */}
-      <NavigationDrawer />
-
-      {/* Dialogs & Overlays */}
-      <ApiConfigModal />
-      <SettingsModal />
-      <CallModal />
-      <MediaViewerModal />
-      <NewChatModal />
-      <AddAccountModal />
-      <JoinInviteModal />
-      <ApkInstallerModal />
-      <MiniAppsModal
-        isOpen={activeModal === 'mini-apps'}
-        onClose={() => setActiveModal('none')}
-      />
-      <ThemeEditorModal
-        isOpen={activeModal === 'theme-editor'}
-        onClose={() => setActiveModal('none')}
-      />
-      <ExportChatModal
-        isOpen={activeModal === 'export-chat'}
-        onClose={() => setActiveModal('none')}
-      />
-      <ContactsModal
-        isOpen={activeModal === 'contacts'}
-        onClose={() => setActiveModal('none')}
-      />
-      <LinkMonitorModal
-        isOpen={activeModal === 'link-monitor'}
-        onClose={() => setActiveModal('none')}
-      />
-      <SendOnlyModal />
-      <PremiumModal />
-      <SecretChatInfoModal />
-      <GroupAdminModal />
-      <ForumTopicsModal />
-      
-      {/* 7 Core Telegram Functions (Activities) */}
-      <SenderModal />
-      <MonitorModal />
-      <MyMessagesModal />
-      <AutoJoinerModal />
-      <AutoResponderModal />
-      <LiveLinkDiscoverModal />
-      <UserProfileModal />
-      <UrlConfirmModal />
-
-      <ForwardModal />
-
-      {/* Dynamic Context Menus */}
-      <ChatContextMenuView />
-      <MessageContextMenuView />
-
-      {/* In-App Floating Heads-up Notification Banner */}
-      <InAppNotificationBanner
-        notifications={inAppNotifications}
-        onDismiss={dismissNotification}
-      />
-
-      {/* Floating Toast Notifications */}
-      <ToastContainer />
-    </div>
-  );
-};
+type NavTab =
+  | 'dashboard'
+  | 'rules'
+  | 'scheduled'
+  | 'radar'
+  | 'memory'
+  | 'patterns'
+  | 'ai_settings';
 
 export default function App() {
+  const [activeTab, setActiveTab] = useState<NavTab>('dashboard');
+
+  // App Data State
+  const [rules, setRules] = useState<Rule[]>([]);
+  const [preferences, setPreferences] = useState<AppPreferencesState>({
+    negationFilterEnabled: true,
+    duplicateWindowSeconds: 60,
+    notificationAccessGranted: true,
+    selectedAppsTarget: 'whatsapp',
+  });
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Load data on initial mount
+  useEffect(() => {
+    refreshData();
+  }, []);
+
+  const refreshData = async () => {
+    const loadedPrefs = repository.getPreferences();
+    setPreferences({ ...loadedPrefs, selectedAppsTarget: 'whatsapp' });
+    setRules(repository.getRules());
+
+    // Sync from real backend if available
+    try {
+      const serverRules = await repository.fetchRulesFromBackend();
+      if (serverRules && serverRules.length > 0) {
+        setRules(serverRules);
+      }
+    } catch {
+      // Offline fallback
+    }
+  };
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => {
+      setToastMessage((current) => (current === msg ? null : current));
+    }, 3500);
+  };
+
+  // Rule actions
+  const handleSaveRule = (ruleData: Omit<Rule, 'createdAt'> & { createdAt?: number }) => {
+    if (ruleData.id === '0') {
+      repository.addRule({ ...ruleData, targetApp: 'whatsapp' });
+      showToast('تمت إضافة قاعدة الرد لواتساب بنجاح');
+    } else {
+      repository.updateRule({
+        ...ruleData,
+        targetApp: 'whatsapp',
+        createdAt: ruleData.createdAt || Date.now(),
+      });
+      showToast('تم حفظ تعديل القاعدة');
+    }
+    refreshData();
+  };
+
+  const handleDeleteRule = (ruleId: string) => {
+    repository.deleteRule(ruleId);
+    showToast('تم حذف القاعدة');
+    refreshData();
+  };
+
+  const handleToggleRule = (ruleId: string, isEnabled: boolean) => {
+    const rule = rules.find((r) => r.id === ruleId);
+    if (rule) {
+      repository.updateRule({ ...rule, isEnabled, targetApp: 'whatsapp' });
+      refreshData();
+    }
+  };
+
+  const handleUpdateAllSystemReplies = (newReply: string) => {
+    repository.updateAllSystemReplies(newReply);
+    refreshData();
+  };
+
+  const handleRestoreMissingSystemKeywords = async () => {
+    const restoredCount = await repository.restoreMissingSystemKeywords();
+    await refreshData();
+    return restoredCount;
+  };
+
+  const handleUpdatePreferences = async (prefs: Partial<AppPreferencesState>) => {
+    const updated = await repository.savePreferences({ ...prefs, selectedAppsTarget: 'whatsapp' });
+    setPreferences(updated);
+    showToast('تم تحديث التفضيلات بنجاح');
+  };
+
+  // Approval from Pattern Analyzer directly creates active Rule!
+  const handleAddRuleFromPattern = (keywordText: string, replyText: string) => {
+    handleSaveRule({
+      id: '0',
+      keyword: keywordText,
+      reply: replyText,
+      targetApp: 'whatsapp',
+      isEnabled: true,
+      isExactMatch: false,
+      source: 'LEARNED_AI',
+    });
+  };
+
   return (
-    <GlobalErrorBoundary>
-      <TelegramProvider>
-        <TelegramAppContent />
-      </TelegramProvider>
-    </GlobalErrorBoundary>
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-['Cairo',sans-serif]">
+      {/* Top Global Navigation Bar - Exclusively WhatsApp Branded */}
+      <header className="bg-slate-900/95 backdrop-blur-md border-b border-slate-800 sticky top-0 z-40 px-4 py-3 shadow-lg">
+        <div className="max-w-7xl mx-auto flex flex-col lg:flex-row items-center justify-between gap-3">
+          {/* Logo & App Title */}
+          <div className="flex items-center gap-3 w-full lg:w-auto justify-between lg:justify-start">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#128C7E] to-[#25D366] p-0.5 shadow-lg shadow-emerald-950/60">
+                <div className="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center">
+                  <Radio className="w-5 h-5 text-[#25D366] animate-pulse" />
+                </div>
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h1 className="text-base md:text-lg font-black tracking-tight text-white">
+                    أتمتة والرد الذكي لواتساب
+                  </h1>
+                  <span className="text-[10px] bg-emerald-950 text-emerald-300 border border-emerald-500/40 px-2 py-0.5 rounded-full font-bold">
+                    واتساب فقط • بالذكاء الاصطناعي
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-400">
+                  يدعم واتساب الرسمي، Business، GB، بلس • مزود بمفاتيح Groq & Gemini وذاكرة دائمة
+                </p>
+              </div>
+            </div>
+
+            {/* Quick WhatsApp Status Indicator */}
+            <div className="lg:hidden flex items-center gap-1.5 bg-emerald-950/80 text-emerald-300 border border-emerald-500/30 px-2.5 py-1 rounded-xl text-[10px] font-bold">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+              <span>نشط</span>
+            </div>
+          </div>
+
+          {/* Navigation Tabs - Exclusively Dedicated to the WhatsApp AI Functions */}
+          <div className="flex items-center gap-1 bg-slate-950/90 p-1.5 rounded-2xl border border-slate-800 text-xs font-bold overflow-x-auto max-w-full">
+            <button
+              onClick={() => setActiveTab('dashboard')}
+              className={`px-3 py-1.5 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+                activeTab === 'dashboard'
+                  ? 'bg-emerald-600 text-white shadow-md'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <Radio className="w-3.5 h-3.5" />
+              <span>الرئيسية والمحادثات</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('ai_settings')}
+              className={`px-3 py-1.5 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+                activeTab === 'ai_settings'
+                  ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md'
+                  : 'text-purple-400 hover:text-white'
+              }`}
+            >
+              <Key className="w-3.5 h-3.5" />
+              <span>مفاتيح الذكاء الاصطناعي</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('rules')}
+              className={`px-3 py-1.5 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+                activeTab === 'rules'
+                  ? 'bg-emerald-600 text-white shadow-md'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <MessageSquare className="w-3.5 h-3.5" />
+              <span>قواعد الرد (25 كلمة)</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('scheduled')}
+              className={`px-3 py-1.5 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+                activeTab === 'scheduled'
+                  ? 'bg-teal-600 text-white shadow-md'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <Clock className="w-3.5 h-3.5" />
+              <span>رسائل مجدولة بالصور</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('radar')}
+              className={`px-3 py-1.5 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+                activeTab === 'radar'
+                  ? 'bg-amber-600 text-white shadow-md'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <Radar className="w-3.5 h-3.5" />
+              <span>رادار المجموعات</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('memory')}
+              className={`px-3 py-1.5 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+                activeTab === 'memory'
+                  ? 'bg-purple-600 text-white shadow-md'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <Brain className="w-3.5 h-3.5" />
+              <span>بوت الذاكرة الدائمة</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('patterns')}
+              className={`px-3 py-1.5 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+                activeTab === 'patterns'
+                  ? 'bg-cyan-600 text-white shadow-md'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <TrendingUp className="w-3.5 h-3.5" />
+              <span>استخلاص الأنماط</span>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content Area */}
+      <main className="flex-1 max-w-7xl mx-auto w-full p-4 md:p-6">
+        {activeTab === 'dashboard' && (
+          <WhatsAppDashboard
+            rules={rules}
+            preferences={preferences}
+            onUpdatePreferences={handleUpdatePreferences}
+            onNavigateToTab={(tab: string) => setActiveTab(tab as NavTab)}
+            onShowToast={showToast}
+          />
+        )}
+
+        {activeTab === 'ai_settings' && (
+          <AISettingsTab onShowToast={showToast} />
+        )}
+
+        {activeTab === 'rules' && (
+          <WhatsAppRulesTab
+            rules={rules}
+            onSaveRule={handleSaveRule}
+            onDeleteRule={handleDeleteRule}
+            onToggleRule={handleToggleRule}
+            onUpdateAllSystemReplies={handleUpdateAllSystemReplies}
+            onRestoreMissingSystemKeywords={handleRestoreMissingSystemKeywords}
+            onShowToast={showToast}
+          />
+        )}
+
+        {activeTab === 'scheduled' && (
+          <ScheduledMessagesTab onShowToast={showToast} />
+        )}
+
+        {activeTab === 'radar' && (
+          <GroupRadarTab onShowToast={showToast} />
+        )}
+
+        {activeTab === 'memory' && (
+          <LearningBotMemoryTab onShowToast={showToast} />
+        )}
+
+        {activeTab === 'patterns' && (
+          <PatternAnalyzerTab
+            onAddRuleFromPattern={handleAddRuleFromPattern}
+            onShowToast={showToast}
+          />
+        )}
+      </main>
+
+      {/* Global Toast Banner */}
+      {toastMessage && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-bottom-3 duration-200">
+          <div className="bg-slate-900 text-white border border-emerald-500/40 px-4 py-2.5 rounded-2xl shadow-2xl flex items-center gap-2.5 text-xs font-bold">
+            <CheckCircle className="w-4 h-4 text-emerald-400" />
+            <span>{toastMessage}</span>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

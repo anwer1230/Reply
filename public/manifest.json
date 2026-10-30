@@ -1,31 +1,32 @@
 {
-  "short_name": "Telegram",
-  "name": "Telegram (DrKLO Official Build)",
-  "description": "Telegram Messenger for Android & Web - Official DrKLO Release Build (Telegram_Anwer)",
+  "id": "/",
+  "name": "الرد التلقائي - AutoReply Arabic",
+  "short_name": "الرد التلقائي",
+  "description": "تطبيق الرد التلقائي الذكي على رسائل واتساب وتيليجرام مع 25 كلمة ثابتة وفلتر النفي بدون خوادم خارجية.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0f172a",
+  "theme_color": "#00695C",
   "icons": [
     {
       "src": "/icon-192.png",
-      "type": "image/png",
       "sizes": "192x192",
-      "purpose": "any maskable"
+      "type": "image/png",
+      "purpose": "any"
     },
     {
       "src": "/icon-512.png",
-      "type": "image/png",
       "sizes": "512x512",
-      "purpose": "any maskable"
+      "type": "image/png",
+      "purpose": "any"
     },
     {
-      "src": "/icon.svg",
-      "type": "image/svg+xml",
-      "sizes": "any",
-      "purpose": "any maskable"
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
-  ],
-  "start_url": "/",
-  "background_color": "#17212b",
-  "theme_color": "#2481cc",
-  "display": "standalone",
-  "orientation": "portrait-primary",
-  "scope": "/"
+  ]
 }

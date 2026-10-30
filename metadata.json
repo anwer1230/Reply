@@ -1,6 +1,6 @@
 {
-  "name": "Anwer Telegram Services",
-  "description": "منصة خدمات وتيليجرام مركز سرعة إنجاز",
+  "name": "AutoReply Arabic - الرد التلقائي لواتساب",
+  "description": "منصة الرد التلقائي والأتمتة الذكية لتطبيق واتساب بالذكاء الاصطناعي (Groq و Gemini)، مع رسائل مجدولة بالصور، ورادار مراقبة المجموعات، وبوت التعلم بذاكرة دائمة.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

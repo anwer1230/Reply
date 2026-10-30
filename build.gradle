@@ -21,4 +21,3 @@ tasks.addRule("Pattern: any task") { String taskName ->
         }
     }
 }
-

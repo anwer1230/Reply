@@ -4,7 +4,7 @@
     "experimentalDecorators": true,
     "useDefineForClassFields": false,
     "module": "ESNext",
-    "types": ["vite/client", "node"],
+    "types": ["vite/client"],
     "lib": [
       "ES2022",
       "DOM",
@@ -22,11 +22,6 @@
       ]
     },
     "allowImportingTsExtensions": true,
-    "noEmit": true,
-    "strict": false,
-    "noImplicitAny": false,
-    "strictNullChecks": false
-  },
-  "include": ["src/**/*", "server.ts", "server/**/*", "vite.config.ts"],
-  "exclude": ["dist", "node_modules"]
+    "noEmit": true
+  }
 }

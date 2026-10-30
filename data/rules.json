@@ -1,0 +1,252 @@
+[
+  {
+    "id": "1",
+    "keyword": "اريد مساعدة",
+    "reply": "أهلاً بك! سأرد عليك في أقرب وقت ممكن.",
+    "targetApp": "all",
+    "isEnabled": true,
+    "isExactMatch": false,
+    "source": "SYSTEM",
+    "createdAt": 1792335098359
+  },
+  {
+    "id": "2",
+    "keyword": "ابي مساعدة",
+    "reply": "أهلاً بك! سأرد عليك في أقرب وقت ممكن.",
+    "targetApp": "all",
+    "isEnabled": true,
+    "isExactMatch": false,
+    "source": "SYSTEM",
+    "createdAt": 1792335099359
+  },
+  {
+    "id": "3",
+    "keyword": "من يسوي تكليف",
+    "reply": "أهلاً بك! سأرد عليك في أقرب وقت ممكن.",
+    "targetApp": "all",
+    "isEnabled": true,
+    "isExactMatch": false,
+    "source": "SYSTEM",
+    "createdAt": 1792335100359
+  },
+  {
+    "id": "4",
+    "keyword": "من يحل",
+    "reply": "أهلاً بك! سأرد عليك في أقرب وقت ممكن.",
+    "targetApp": "all",
+    "isEnabled": true,
+    "isExactMatch": false,
+    "source": "SYSTEM",
+    "createdAt": 1792335101359
+  },
+  {
+    "id": "5",
+    "keyword": "عندي بحث",
+    "reply": "أهلاً بك! سأرد عليك في أقرب وقت ممكن.",
+    "targetApp": "all",
+    "isEnabled": true,
+    "isExactMatch": false,
+    "source": "SYSTEM",
+    "createdAt": 1792335102359
+  },
+  {
+    "id": "6",
+    "keyword": "معي واجب",
+    "reply": "أهلاً بك! سأرد عليك في أقرب وقت ممكن.",
+    "targetApp": "all",
+    "isEnabled": true,
+    "isExactMatch": false,
+    "source": "SYSTEM",
+    "createdAt": 1792335103359
+  },
+  {
+    "id": "7",
+    "keyword": "عندي اسايمنت",
+    "reply": "أهلاً بك! سأرد عليك في أقرب وقت ممكن.",
+    "targetApp": "all",
+    "isEnabled": true,
+    "isExactMatch": false,
+    "source": "SYSTEM",
+    "createdAt": 1792335104359
+  },
+  {
+    "id": "8",
+    "keyword": "من يسوي اسايمنت",
+    "reply": "أهلاً بك! سأرد عليك في أقرب وقت ممكن.",
+    "targetApp": "all",
+    "isEnabled": true,
+    "isExactMatch": false,
+    "source": "SYSTEM",
+    "createdAt": 1792335105359
+  },
+  {
+    "id": "9",
+    "keyword": "ابي سكليف",
+    "reply": "أهلاً بك! سأرد عليك في أقرب وقت ممكن.",
+    "targetApp": "all",
+    "isEnabled": true,
+    "isExactMatch": false,
+    "source": "SYSTEM",
+    "createdAt": 1792335106359
+  },
+  {
+    "id": "10",
+    "keyword": "ابي عذر",
+    "reply": "أهلاً بك! سأرد عليك في أقرب وقت ممكن.",
+    "targetApp": "all",
+    "isEnabled": true,
+    "isExactMatch": false,
+    "source": "SYSTEM",
+    "createdAt": 1792335107359
+  },
+  {
+    "id": "11",
+    "keyword": "من يسوي سكليف",
+    "reply": "أهلاً بك! سأرد عليك في أقرب وقت ممكن.",
+    "targetApp": "all",
+    "isEnabled": true,
+    "isExactMatch": false,
+    "source": "SYSTEM",
+    "createdAt": 1792335108359
+  },
+  {
+    "id": "12",
+    "keyword": "ابي شخص مضمون",
+    "reply": "أهلاً بك! سأرد عليك في أقرب وقت ممكن.",
+    "targetApp": "all",
+    "isEnabled": true,
+    "isExactMatch": false,
+    "source": "SYSTEM",
+    "createdAt": 1792335109359
+  },
+  {
+    "id": "13",
+    "keyword": "ابي مختص",
+    "reply": "أهلاً بك! سأرد عليك في أقرب وقت ممكن.",
+    "targetApp": "all",
+    "isEnabled": true,
+    "isExactMatch": false,
+    "source": "SYSTEM",
+    "createdAt": 1792335110359
+  },
+  {
+    "id": "14",
+    "keyword": "هيليب",
+    "reply": "أهلاً بك! سأرد عليك في أقرب وقت ممكن.",
+    "targetApp": "all",
+    "isEnabled": true,
+    "isExactMatch": false,
+    "source": "SYSTEM",
+    "createdAt": 1792335111359
+  },
+  {
+    "id": "15",
+    "keyword": "من يستطيع",
+    "reply": "أهلاً بك! سأرد عليك في أقرب وقت ممكن.",
+    "targetApp": "all",
+    "isEnabled": true,
+    "isExactMatch": false,
+    "source": "SYSTEM",
+    "createdAt": 1792335112359
+  },
+  {
+    "id": "16",
+    "keyword": "تعرفون احد",
+    "reply": "أهلاً بك! سأرد عليك في أقرب وقت ممكن.",
+    "targetApp": "all",
+    "isEnabled": true,
+    "isExactMatch": false,
+    "source": "SYSTEM",
+    "createdAt": 1792335113359
+  },
+  {
+    "id": "17",
+    "keyword": "تعرفون شخص",
+    "reply": "أهلاً بك! سأرد عليك في أقرب وقت ممكن.",
+    "targetApp": "all",
+    "isEnabled": true,
+    "isExactMatch": false,
+    "source": "SYSTEM",
+    "createdAt": 1792335114359
+  },
+  {
+    "id": "18",
+    "keyword": "من يساعدني",
+    "reply": "أهلاً بك! سأرد عليك في أقرب وقت ممكن.",
+    "targetApp": "all",
+    "isEnabled": true,
+    "isExactMatch": false,
+    "source": "SYSTEM",
+    "createdAt": 1792335115359
+  },
+  {
+    "id": "19",
+    "keyword": "من يعرف مختص",
+    "reply": "أهلاً بك! سأرد عليك في أقرب وقت ممكن.",
+    "targetApp": "all",
+    "isEnabled": true,
+    "isExactMatch": false,
+    "source": "SYSTEM",
+    "createdAt": 1792335116359
+  },
+  {
+    "id": "20",
+    "keyword": "مين يعرف يحل واجب",
+    "reply": "أهلاً بك! سأرد عليك في أقرب وقت ممكن.",
+    "targetApp": "all",
+    "isEnabled": true,
+    "isExactMatch": false,
+    "source": "SYSTEM",
+    "createdAt": 1792335117359
+  },
+  {
+    "id": "21",
+    "keyword": "من يحل واجبات الجامعه",
+    "reply": "أهلاً بك! سأرد عليك في أقرب وقت ممكن.",
+    "targetApp": "all",
+    "isEnabled": true,
+    "isExactMatch": false,
+    "source": "SYSTEM",
+    "createdAt": 1792335118359
+  },
+  {
+    "id": "22",
+    "keyword": "أحتاج مساعدتكم",
+    "reply": "أهلاً بك! سأرد عليك في أقرب وقت ممكن.",
+    "targetApp": "all",
+    "isEnabled": true,
+    "isExactMatch": false,
+    "source": "SYSTEM",
+    "createdAt": 1792335119359
+  },
+  {
+    "id": "23",
+    "keyword": "ابي احد يسوي بحث",
+    "reply": "أهلاً بك! سأرد عليك في أقرب وقت ممكن.",
+    "targetApp": "all",
+    "isEnabled": true,
+    "isExactMatch": false,
+    "source": "SYSTEM",
+    "createdAt": 1792335120359
+  },
+  {
+    "id": "24",
+    "keyword": "مين يعرف مختص",
+    "reply": "أهلاً بك! سأرد عليك في أقرب وقت ممكن.",
+    "targetApp": "all",
+    "isEnabled": true,
+    "isExactMatch": false,
+    "source": "SYSTEM",
+    "createdAt": 1792335121359
+  },
+  {
+    "id": "25",
+    "keyword": "من يعرف احد كويس",
+    "reply": "أهلاً بك! سأرد عليك في أقرب وقت ممكن.",
+    "targetApp": "all",
+    "isEnabled": true,
+    "isExactMatch": false,
+    "source": "SYSTEM",
+    "createdAt": 1792335122359
+  }
+]

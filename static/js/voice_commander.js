@@ -251,10 +251,10 @@
                 }
 
                 // ----------------------------------------------------
-                // 1.5. أمر تسجيل الخروج من حساب (بالاسم أو الرقم)
+                // 1.5. أمر تسجيل الخروج من حساب محدد أو الحساب الحالي
                 // ----------------------------------------------------
-                if (text.includes('سجل الخروج') || text.includes('سجل خروج') || text.includes('تسجيل الخروج') || text.includes('تسجيل خروج') || text.includes('اخرج من حساب') || text.includes('الخروج من حساب') || text.includes('خروج من حساب') || text.includes('سجل خروجك') || text.includes('تسجيل خروجي')) {
-                    await this.cmdLogoutAccount(text);
+                if (text.includes('سجل الخروج') || text.includes('تسجيل الخروج') || text.includes('سجل خروج') || text.includes('تسجيل خروج') || text.includes('اخرج من حساب') || text.includes('خروج من حساب') || text.includes('خروج من الحساب') || (text.includes('خروج') && !text.includes('دخول'))) {
+                    await this.cmdLogoutAccount(text, rawTranscript);
                     return;
                 }
 
@@ -405,20 +405,12 @@
                     return;
                 }
 
-                if (
-                    text.includes('اوقف عملية الارسال') || text.includes('أوقف عملية الإرسال') ||
-                    text.includes('اوقف عمليه الارسال') || text.includes('أوقف عمليه الإرسال') ||
-                    text.includes('وقف عملية الارسال') || text.includes('وقف عملية الإرسال') ||
-                    text.includes('وقف عمليه الارسال') || text.includes('وقف عمليه الإرسال') ||
-                    text.includes('ايقاف عملية الارسال') || text.includes('إيقاف عملية الإرسال') ||
-                    text.includes('ايقاف عمليه الارسال') || text.includes('إيقاف عمليه الإرسال') ||
-                    text.includes('اوقف الإرسال') || text.includes('أوقف الإرسال') ||
-                    text.includes('اوقف الارسال') || text.includes('أوقف الارسال') ||
-                    text.includes('وقف الإرسال') || text.includes('وقف الارسال') ||
-                    text.includes('إيقاف الإرسال') || text.includes('ايقاف الارسال') ||
-                    text.includes('توقف عن الارسال') || text.includes('توقف عن الإرسال') ||
-                    ((text.includes('اوقف') || text.includes('أوقف') || text.includes('وقف') || text.includes('ايقاف') || text.includes('إيقاف')) && (text.includes('ارسال') || text.includes('إرسال') || text.includes('نشر')))
-                ) {
+                // ----------------------------------------------------
+                // إيقاف عملية الإرسال
+                // ----------------------------------------------------
+                const hasStopWord = text.includes('اوقف') || text.includes('أوقف') || text.includes('ايقاف') || text.includes('إيقاف') || text.includes('وقف') || text.includes('توقف');
+                const hasSendWord = text.includes('ارسال') || text.includes('إرسال') || text.includes('نشر') || text.includes('بث');
+                if (hasStopWord && hasSendWord) {
                     await this.cmdStopBroadcast();
                     return;
                 }
@@ -904,79 +896,130 @@
         }
 
         async cmdStopBroadcast() {
+            console.log('[VoiceCommander] 🛑 تنفيذ أمر إيقاف الإرسال الصوتي');
             try {
-                await fetch('/api/send_now/pause', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ user_id: window.currentActiveUserId || window.currentUser || 'user_1' })
-                });
-            } catch (e) {}
-            const stopBtn = document.getElementById('stopSendNowBtn') || document.getElementById('pauseResumeSendBtn') || document.getElementById('stopBtn');
-            if (stopBtn) {
-                this.highlight(stopBtn);
-                if (!stopBtn.dataset.state || stopBtn.dataset.state === 'running') {
-                    stopBtn.click();
+                // إيقاف فوري سواء كان عبر دالة الواجهة أو API المباشر
+                if (typeof window.togglePauseResumeSend === 'function' && window.batchSenderState === 'sending') {
+                    await window.togglePauseResumeSend();
+                } else {
+                    const stopBtn = document.getElementById('stopSendNowBtn') || document.getElementById('btnPauseResumeSend');
+                    if (stopBtn && stopBtn.offsetParent !== null) {
+                        this.highlight(stopBtn);
+                        stopBtn.click();
+                    } else {
+                        await fetch('/api/send_now/pause', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            credentials: 'same-origin',
+                            body: JSON.stringify({})
+                        });
+                        if (typeof window.applyBatchPausedUI === 'function') {
+                            window.applyBatchPausedUI(0, 0, 0);
+                        }
+                    }
                 }
+            } catch (err) {
+                console.warn('[VoiceCommander] Error pausing broadcast:', err);
             }
+
+            // الرد الصوتي المطلوب بالضبط
             this.speak('تم إيقاف الإرسال');
-            const transcriptEl = document.getElementById('voiceLiveTranscript');
-            if (transcriptEl) {
-                transcriptEl.innerHTML = '<span style="color:#f59e0b;font-weight:bold;"><i class="fas fa-pause me-1"></i>تم إيقاف الإرسال</span>';
+            if (typeof window.showAlert === 'function') {
+                window.showAlert('warning', '⏸️ تم إيقاف الإرسال', 4000);
             }
         }
 
-        async cmdLogoutAccount(rawText) {
+        async cmdLogoutAccount(text, rawTranscript) {
+            console.log('[VoiceCommander] 🚪 تنفيذ أمر تسجيل الخروج الصوتي:', text);
             let targetUid = null;
-            let targetName = '';
-            const norm = (rawText || '').replace(/[إأآا]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي');
+            let targetLabel = '';
 
-            for (let i = 1; i <= 5; i++) {
-                const words = ['واحد', 'اثنين', 'ثلاثه', 'اربعه', 'خمسه'];
-                const ords = ['الاول', 'الثاني', 'الثالث', 'الرابع', 'الخامس'];
-                if (norm.includes(`حساب ${i}`) || norm.includes(`حساب رقم ${i}`) || norm.includes(`رقم ${i}`) || norm.includes(ords[i-1]) || norm.includes(`حساب ${words[i-1]}`) || (norm.includes(`${i}`) && norm.includes('حساب'))) {
-                    targetUid = `user_${i}`;
-                    targetName = `حساب ${i}`;
+            // 1. استرجاع قائمة الحسابات
+            let accounts = {};
+            try {
+                const res = await fetch('/api/get_all_accounts_info', { credentials: 'same-origin' });
+                if (res.ok) accounts = await res.json();
+            } catch (e) {}
+
+            // 2. مطابقة برقم الحساب
+            const ordinals = {
+                '1': 'user_1', 'واحد': 'user_1', 'اول': 'user_1', 'الأول': 'user_1', 'الاول': 'user_1',
+                '2': 'user_2', 'اثنين': 'user_2', 'إثنين': 'user_2', 'تاني': 'user_2', 'الثاني': 'user_2',
+                '3': 'user_3', 'ثلاثة': 'user_3', 'تلاتة': 'user_3', 'تالت': 'user_3', 'الثالث': 'user_3',
+                '4': 'user_4', 'أربعة': 'user_4', 'اربعة': 'user_4', 'رابع': 'user_4', 'الرابع': 'user_4',
+                '5': 'user_5', 'خمسة': 'user_5', 'خامس': 'user_5', 'الخامس': 'user_5'
+            };
+
+            for (const [k, uid] of Object.entries(ordinals)) {
+                if (text.includes(`حساب ${k}`) || text.includes(`الحساب ${k}`) || text.includes(`رقم ${k}`) || (text.includes(k) && text.includes('حساب'))) {
+                    targetUid = uid;
+                    const acc = accounts[uid] || {};
+                    targetLabel = acc.account_name || acc.name || `الحساب ${k}`;
                     break;
                 }
             }
+
+            // 3. مطابقة بالاسم
             if (!targetUid) {
-                if (norm.includes('لميس')) {
-                    targetUid = 'user_1';
-                    targetName = 'حساب لميس';
-                } else if (norm.includes('انور')) {
-                    targetUid = 'user_2';
-                    targetName = 'حساب أنور';
+                for (const [uid, acc] of Object.entries(accounts)) {
+                    const accName = (acc.account_name || acc.name || '').toLowerCase();
+                    const words = accName.split(/\s+/).filter(w => w.length >= 3);
+                    if (words.some(w => text.includes(w))) {
+                        targetUid = uid;
+                        targetLabel = acc.account_name || acc.name || uid;
+                        break;
+                    }
                 }
             }
-            if (!targetUid) {
-                targetUid = window.currentActiveUserId || window.currentUser || 'user_1';
-                targetName = 'الحساب الحالي';
+
+            // 4. مطابقة بحساب لميس تحديداً
+            if (!targetUid && (text.includes('لميس') || text.includes('أمل') || text.includes('amal'))) {
+                targetUid = 'user_1';
+                targetLabel = 'لميس';
+            }
+
+            // 5. إذا لم يحدد أو قال الحساب الحالي
+            if (!targetUid || text.includes('الحالي') || text.includes('حسابي') || text.includes('هذا الحساب')) {
+                targetUid = window.currentUserId || 'user_1';
+                const curAcc = accounts[targetUid] || {};
+                targetLabel = curAcc.account_name || curAcc.name || 'الحالي';
             }
 
             try {
-                await fetch('/api/user_logout', {
+                const resp = await fetch('/api/user_logout', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
                     body: JSON.stringify({ user_id: targetUid })
                 });
-            } catch (e) {
-                console.warn('Logout API error:', e);
-            }
+                const data = await resp.json();
 
-            const responseText = `تم تسجيل الخروج من ${targetName}`;
-            this.speak(responseText);
-            const transcriptEl = document.getElementById('voiceLiveTranscript');
-            if (transcriptEl) {
-                transcriptEl.innerHTML = `<span style="color:#ef4444;font-weight:bold;"><i class="fas fa-sign-out-alt me-1"></i>${responseText}</span>`;
-            }
-            setTimeout(() => {
-                if (typeof window.fetchAllAccounts === 'function') {
-                    window.fetchAllAccounts();
+                // الرد الصوتي المطلوب بالضبط
+                const spokenMsg = `تم تسجيل الخروج من حساب ${targetLabel}`;
+                this.speak(spokenMsg);
+
+                if (typeof window.showAlert === 'function') {
+                    window.showAlert('success', `✅ ${spokenMsg}`, 5000);
                 }
-                setTimeout(() => {
-                    window.location.reload();
-                }, 800);
-            }, 1000);
+
+                if (targetUid === (window.currentUserId || 'user_1')) {
+                    if (typeof window.showLoggedOut === 'function') {
+                        window.showLoggedOut();
+                    }
+                    const phoneInput = document.getElementById('phone');
+                    if (phoneInput) phoneInput.value = '';
+                    const pwInput = document.getElementById('password');
+                    if (pwInput) pwInput.value = '';
+                }
+
+                if (typeof window.refreshAccountsSidebar === 'function') {
+                    window.refreshAccountsSidebar(true);
+                }
+
+            } catch (err) {
+                console.error('[VoiceCommander] Error logging out:', err);
+                this.speak(`تعذر تسجيل الخروج من حساب ${targetLabel}`);
+            }
         }
 
         async cmdSelectSendType(type) {

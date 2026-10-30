@@ -129,6 +129,22 @@ from telethon.errors import (
     ChannelPrivateError, UsernameInvalidError, UsernameNotOccupiedError,
     ChannelsTooMuchError
 )
+try:
+    from telethon.errors.rpcerrorlist import (
+        AuthKeyUnregisteredError, AuthKeyDuplicatedError, AuthKeyInvalidError,
+        SessionRevokedError, SessionExpiredError, UserDeactivatedError,
+        UserDeactivatedBanError, UnauthorizedError
+    )
+except ImportError:
+    # Fallback dummy classes if not found in specific submodule
+    class AuthKeyUnregisteredError(Exception): pass
+    class AuthKeyDuplicatedError(Exception): pass
+    class AuthKeyInvalidError(Exception): pass
+    class SessionRevokedError(Exception): pass
+    class SessionExpiredError(Exception): pass
+    class UserDeactivatedError(Exception): pass
+    class UserDeactivatedBanError(Exception): pass
+    class UnauthorizedError(Exception): pass
 from telethon.sessions import StringSession
 from rate_limiter import join_limiter
 import socket
@@ -141,85 +157,75 @@ def randomize_message(text):
     rnd = random.choice(['', ' ', '  ', '\u200B', '\u200C'])
     return text + rnd
 
-# قاموس لتتبع أحداث الإلغاء والإيقاف المؤقت وحفظ حالة الدفعات للاستئناف
+# قاموس لتتبع أحداث الإلغاء الفوري لدفعات الإرسال للمستخدمين
 BATCH_CANCEL_EVENTS = {}
-BATCH_PAUSE_EVENTS = {}
-BATCH_PAUSED_STATES = {}
-BATCH_STATE_LOCK = threading.Lock()
+# قاموس لتتبع حالة دفعات الإرسال ودعم الإيقاف الفوري والاستئناف من حيث التوقف
+BATCH_SENDER_STATES = {}
 
-def _cleanup_temp_images(image_files):
-    if not image_files:
-        return
-    for img_file in image_files:
-        try:
-            p = img_file.get('path') if isinstance(img_file, dict) else str(img_file)
-            if p and os.path.exists(p):
-                os.unlink(p)
-                logger.info(f"Cleaned up temp file: {p}")
-        except Exception as e:
-            logger.error(f"Error cleaning temp file: {e}")
+def handle_session_revoked(user_id, reason="تم إنهاء أو إزالة الجلسة من تطبيق تليجرام الرسمي"):
+    """
+    استشعار تلقائي لإنهاء أو إزالة الجلسة من تطبيق تليجرام الرسمي:
+    - تسجيل الخروج تلقائياً فورياً
+    - تنظيف ملف الجلسة الملغاة من القرص
+    - تحديث حالة الحساب وإرسال إشعار فوري للواجهة
+    """
+    logger.warning(f"🚨 [استشعار إلغاء الجلسة] للمستخدم {user_id}: {reason}")
+    try:
+        with USERS_LOCK:
+            if user_id in USERS:
+                USERS[user_id]['authenticated'] = False
+                USERS[user_id]['connected'] = False
+                USERS[user_id]['is_running'] = False
+                cm = USERS[user_id].get('client_manager')
+                if cm:
+                    try:
+                        cm.authenticated = False
+                        cm.connected = False
+                        if getattr(cm, 'client', None):
+                            cm.client.disconnect()
+                    except Exception:
+                        pass
 
-def notify_and_handle_session_revocation(uid, reason=None):
-    if not reason:
-        reason = "تم إنهاء أو إزالة الجلسة من تطبيق تيليجرام الرسمي"
-    logger.warning(f"🚨 [SESSION REVOKED] User {uid}: {reason}")
-    account_name = ''
-    phone = ''
-    with USERS_LOCK:
-        if uid in USERS:
-            user_data = USERS[uid]
-            account_name = user_data.get('account_name') or user_data.get('name') or uid
-            phone = user_data.get('account_phone') or user_data.get('phone') or ''
-            user_data['authenticated'] = False
-            user_data['connected'] = False
-            user_data['is_running'] = False
-            cm = user_data.get('client_manager')
-            if cm:
-                try:
-                    if hasattr(cm, 'client') and cm.client:
-                        cm.client.disconnect()
-                except Exception:
-                    pass
-    for _ext in ['_session.session', '_string.txt']:
-        _fp = os.path.join(SESSIONS_DIR, f"{uid}{_ext}")
-        if os.path.exists(_fp):
+        session_file = os.path.join(SESSIONS_DIR, f"{user_id}_session.session")
+        if os.path.exists(session_file):
             try:
-                os.remove(_fp)
-            except Exception:
-                pass
-    try:
-        github_delete_session(uid)
-    except Exception:
-        pass
-    try:
-        st = load_settings(uid)
-        st['authenticated'] = False
-        st['connected'] = False
-        save_settings(uid, st)
-    except Exception:
-        pass
-    try:
-        rotating_manager.stop(uid)
-    except Exception:
-        pass
-    with BATCH_STATE_LOCK:
-        if uid in BATCH_CANCEL_EVENTS:
-            BATCH_CANCEL_EVENTS[uid].set()
-        if uid in BATCH_PAUSED_STATES:
-            del BATCH_PAUSED_STATES[uid]
-    
-    display_title = account_name or phone or uid
-    revocation_payload = {
-        "user_id": uid,
-        "account_name": account_name,
-        "phone": phone,
-        "reason": f"⚠️ تم إنهاء أو إزالة جلسة الحساب ({display_title}) من تطبيق تيليجرام الرسمي! تم تسجيل الخروج تلقائياً.",
-        "message": f"⚠️ تم إزالة الجلسة من تطبيق تيليجرام الرسمي للحساب {display_title}. تم تسجيل الخروج تلقائياً."
-    }
-    socketio.emit('session_revoked', revocation_payload, to=uid)
-    socketio.emit('session_revoked', revocation_payload)
-    socketio.emit('log_update', {"message": revocation_payload["reason"]}, to=uid)
-    socketio.emit('log_update', {"message": revocation_payload["reason"]})
+                os.remove(session_file)
+                logger.info(f"تم حذف ملف الجلسة المنتهية: {session_file}")
+            except Exception as _fe:
+                logger.error(f"خطأ في حذف ملف الجلسة المنتهية: {_fe}")
+
+        try:
+            st = load_settings(user_id) or {}
+            st['authenticated'] = False
+            st['connected'] = False
+            save_settings(user_id, st)
+        except Exception:
+            pass
+
+        alert_msg = "⚠️ تنبيه أمني: تم رصد إنهاء أو إزالة الجلسة من تطبيق تليجرام الآخر الرسمي! تم تسجيل الخروج تلقائياً."
+        socketio.emit('session_revoked', {
+            "user_id": user_id,
+            "message": alert_msg,
+            "reason": reason
+        }, to=user_id)
+
+        socketio.emit('login_status', {
+            "logged_in": False,
+            "connected": False,
+            "session_revoked": True,
+            "message": alert_msg
+        }, to=user_id)
+
+        socketio.emit('connection_status', {
+            "status": "disconnected"
+        }, to=user_id)
+
+        socketio.emit('log_update', {
+            "message": f"🚨 {alert_msg}"
+        }, to=user_id)
+
+    except Exception as e:
+        logger.error(f"خطأ أثناء معالجة إلغاء الجلسة للمستخدم {user_id}: {e}")
 
 try:
     from link_radar import radar_manager
@@ -1806,7 +1812,6 @@ def load_settings(user_id):
                 database_settings.setdefault('keyword_auto_reply_in_dm', True)
                 database_settings.setdefault('alert_target_user', 'me')
                 database_settings.setdefault('user_auto_replies', [])
-                database_settings.setdefault('sanitize_mode', 'auto')
                 return database_settings
         except Exception as _db_load_error:
             logger.warning("PostgreSQL settings read failed for %s: %s", user_id, _db_load_error)
@@ -1831,7 +1836,6 @@ def load_settings(user_id):
             data.setdefault('keyword_auto_reply_in_dm', True)
             data.setdefault('alert_target_user', 'me')
             data.setdefault('user_auto_replies', [])
-            data.setdefault('sanitize_mode', 'auto')
             if _DB_READY:
                 _app_db.save_settings(user_id, data)
             return data
@@ -1854,7 +1858,6 @@ def load_settings(user_id):
             data.setdefault('keyword_auto_reply_in_dm', True)
             data.setdefault('alert_target_user', 'me')
             data.setdefault('user_auto_replies', [])
-            data.setdefault('sanitize_mode', 'auto')
             # نقل البيانات للمجلد الجديد والقاعدة عند توفرها
             save_settings(user_id, data, force=True)
             return data
@@ -1872,8 +1875,7 @@ def load_settings(user_id):
             'keyword_auto_reply_in_group': False,
             'keyword_auto_reply_in_dm': True,
             'alert_target_user': 'me',
-            'user_auto_replies': [],
-            'sanitize_mode': 'auto'
+            'user_auto_replies': []
         }
     except Exception as e:
         logger.error(f"Error loading settings for {user_id}: {str(e)}")
@@ -1891,8 +1893,7 @@ def load_settings(user_id):
             'keyword_auto_reply_in_group': False,
             'keyword_auto_reply_in_dm': True,
             'alert_target_user': 'me',
-            'user_auto_replies': [],
-            'sanitize_mode': 'auto'
+            'user_auto_replies': []
         }
 
 # ترحيل كسول وآمن: لا يستبدل أي إعداد موجود في PostgreSQL
@@ -2054,6 +2055,34 @@ class TelegramClientManager:
         self.my_name = None
         self._my_alerts_processed = set()
 
+    async def _session_health_watchdog(self):
+        """مراقب دوري يستشعر فوراً إذا تم إنهاء أو إزالة الجلسة من تطبيق تليجرام الرسمي"""
+        while not self.stop_flag.is_set():
+            try:
+                await asyncio.sleep(15)
+                if self.stop_flag.is_set():
+                    break
+                if self.client and self.client.is_connected() and getattr(self, 'authenticated', False):
+                    try:
+                        me = await self.client.get_me()
+                        if not me:
+                            handle_session_revoked(self.user_id, "تم إنهاء الجلسة (الحساب غير مصرح)")
+                            break
+                    except (AuthKeyUnregisteredError, SessionRevokedError, SessionExpiredError,
+                            UserDeactivatedError, UserDeactivatedBanError, AuthKeyInvalidError, AuthKeyDuplicatedError) as auth_ex:
+                        logger.warning(f"🚨 استشعار إنهاء الجلسة في المراقِب للمستخدم {self.user_id}: {auth_ex}")
+                        handle_session_revoked(self.user_id, f"تم إنهاء الجلسة من تطبيق تليجرام الرسمي ({auth_ex})")
+                        break
+                    except Exception as ex:
+                        ex_str = str(ex).lower()
+                        if any(k in ex_str for k in ["auth_key_unregistered", "session_revoked", "user_deactivated", "session_expired"]):
+                            handle_session_revoked(self.user_id, "تم إنهاء الجلسة من تطبيق تليجرام الرسمي")
+                            break
+            except asyncio.CancelledError:
+                break
+            except Exception:
+                await asyncio.sleep(5)
+
     async def _ensure_my_info(self):
         """التحقق وتخزين هوية الحساب المسجل لاستخدامه في فحص الردود والتنبيهات"""
         if not self.my_id and self.client:
@@ -2200,24 +2229,23 @@ class TelegramClientManager:
         return is_prot, reason
 
     async def is_session_valid(self):
-        """التحقق من صحة الجلسة الحالية واستشعار إنهائها من التطبيق الرسمي"""
+        """التحقق من صحة الجلسة الحالية"""
         try:
             if not self.client:
                 return False
             is_authorized = await self.client.is_user_authorized()
             if not is_authorized:
-                notify_and_handle_session_revocation(self.user_id, "تم إنهاء الجلسة من تطبيق تيليجرام الرسمي")
                 return False
             me = await self.client.get_me()
-            if me is None:
-                notify_and_handle_session_revocation(self.user_id, "تعذر الوصول لمعلومات الحساب (الجلسة ملغاة)")
-                return False
-            return True
+            return me is not None
         except Exception as e:
             error_str = str(e).lower()
-            if any(kw in error_str for kw in ['auth_key', 'session', 'revoked', 'unauthorized', 'deactivated', '401', 'authkeyunregistered']):
+            if any(kw in error_str for kw in ['auth_key', 'session', 'revoked', 'unauthorized', 'deactivated']):
                 logger.warning(f"Session invalid for {self.user_id}: {e}")
-                notify_and_handle_session_revocation(self.user_id, f"تم إلغاء الجلسة من تطبيق تيليجرام الرسمي ({e})")
+                socketio.emit('session_revoked', {
+                    "user_id": self.user_id,
+                    "reason": str(e)
+                }, to=self.user_id)
             return False
 
     def check_session_valid_sync(self):
@@ -3547,6 +3575,11 @@ class TelegramLogin:
 
                 if self.connected:
                     logger.info(f"[{self.user_id}] ✅ اتصل بنجاح في المحاولة {attempt}")
+                    if self.authenticated and self.loop and self.loop.is_running():
+                        try:
+                            asyncio.run_coroutine_threadsafe(self._session_health_watchdog(), self.loop)
+                        except Exception as _w_err:
+                            logger.debug(f"Watchdog start err: {_w_err}")
                     break
 
                 logger.warning(f"[{self.user_id}] المحاولة {attempt}: الاتصال غير مستقر")
@@ -4555,213 +4588,11 @@ class TelegramManager:
 
         raise Exception(str(last_exc) if last_exc else f"لا يمكن الوصول إلى: {entity}")
 
-    def _prepare_smart_send(self, user_id, message, report, has_media=False):
-        """
-        قرار موحد للإرسال الذكي التلقائي:
-        - بوتات حماية → salam
-        - كلمات محظورة → تعديل
-        - روابط/إعلانات → تعديل أو حذف
-        - هواتف → تمويه
-        - وسائط محظورة → إلغاء
-        """
-        import re as _re
-        actions = []
-        prohibited = set(report.get('prohibited_actions', []))
-        protection_bots = report.get('protection_bots', [])
-        causes = report.get('causes', []) + report.get('mistakes_by_others', [])
-        all_reasons = " ".join(causes).lower()
-
-        is_protected = bool(
-            report.get('is_protected') or
-            report.get('blocks_ads') or
-            report.get('requires_smart_send') or
-            protection_bots
-        )
-        has_bots = bool(protection_bots)
-
-        # 1. تكييف أساسي (كلمات محظورة + روابط + هواتف + وسائط)
-        adapted, can_media, adapt_actions = self.adapt_message_to_group_report(
-            message, report, has_media=has_media
-        )
-        actions.extend(adapt_actions)
-
-        # 2. تنقية إضافية إن بقيت روابط/إعلانات ممنوعة صراحةً
-        if adapted and ('no_links' in prohibited or 'no_ads' in prohibited or 'no_phones' in prohibited):
-            if _re.search(r'https?://|t\.me/|wa\.me/|@[a-zA-Z0-9_]{4,}|\+?\d{8,15}', adapted):
-                cleaned = MessageSanitizer.sanitize(adapted, mode='clean')
-                if cleaned is not None and cleaned != adapted:
-                    adapted = cleaned
-                    actions.append("🧹 تنقية إضافية شاملة")
-
-        # 3. لا حماية → إرسال أصلي
-        if not is_protected:
-            return {
-                'should_skip': False, 'use_salam': False,
-                'can_media': has_media, 'adapted_message': message,
-                'actions': [], 'reason': 'مجموعة آمنة ✅'
-            }
-
-        # 4. رسالة أصبحت فارغة → تخطي
-        if not adapted or not adapted.strip():
-            return {
-                'should_skip': True, 'use_salam': False,
-                'can_media': False, 'adapted_message': '',
-                'actions': actions, 'reason': 'الرسالة فارغة بعد التكييف'
-            }
-
-        # 5. المحمية ببوتات → salam بالرسالة المعدّلة
-        if has_bots:
-            return {
-                'should_skip': False, 'use_salam': True,
-                'can_media': False,
-                'adapted_message': adapted,
-                'actions': actions, 'reason': f'بوتات حماية ({len(protection_bots)}) → إرسال ذكي (salam)'
-            }
-
-        # 6. قيود أخرى (كلمات/روابط/هواتف/وسائط) بدون بوتات → إرسال مباشر بالرسالة المعدّلة
-        return {
-            'should_skip': False, 'use_salam': False,
-            'can_media': can_media, 'adapted_message': adapted,
-            'actions': actions, 'reason': 'معدّلة حسب قيود المجموعة 🛡️'
-        }
-
-    def _launch_salam(self, user_id, client_manager, entity_obj, entity_label, final_message, wait_for_completion=False, cancel_event=None):
-        """تشغيل الإرسال الذكي salam في خيط مستقل"""
-        group_id = getattr(entity_obj, 'id', None) or hash(str(entity_label))
-        key = f"{user_id}_{group_id}"
-        if key in self._smart_running:
-            return {"success": True, "skipped": False, "smart": True,
-                    "message": "⚠️ دورة ذكية قيد التشغيل لهذه المجموعة، ستُكمل عند انتهائها"}
-        self._smart_running.add(key)
-        t = _OSThread(
-            target=self._run_smart_protected_send,
-            args=(user_id, client_manager, entity_obj, entity_label, final_message, key, cancel_event),
-            daemon=True,
-            name=f"SmartSend-{key}"
-        )
-        t.start()
-        if wait_for_completion:
-            t.join(timeout=90)
-            return {"success": True, "smart": True,
-                    "message": f"🧠 اكتملت معالجة الإرسال الذكي لـ {entity_label}"}
-        else:
-            return {"success": True, "smart": True,
-                    "message": f"🧠 بدأ الإرسال الذكي لـ {entity_label} (أُرسلت 'السلام عليكم' وجارٍ استيفاء الشروط للتعديل تلقائياً)"}
-
-    def _do_send_message(self, client_manager, entity_obj, entity_label, message):
-        """إرسال رسالة نصية مباشرة مع دعم الانضمام التلقائي إذا لزم الأمر"""
-        try:
-            result = client_manager.run_coroutine(
-                client_manager.client.send_message(entity_obj, message, parse_mode='md')
-            )
-        except Exception as _send_err:
-            _err_str = str(_send_err).lower()
-            if "write" in _err_str or "forbidden" in _err_str or "not a member" in _err_str or "participant" in _err_str:
-                try:
-                    logger.info(f"Auto-joining {entity_label} before sending message...")
-                    from telethon.tl.functions.channels import JoinChannelRequest
-                    client_manager.run_coroutine(
-                        client_manager.client(JoinChannelRequest(entity_obj))
-                    )
-                    time.sleep(1)
-                    result = client_manager.run_coroutine(
-                        client_manager.client.send_message(entity_obj, message, parse_mode='md')
-                    )
-                except Exception as _join_err:
-                    raise Exception(f"لا يمكن الإرسال في {entity_label}: تتطلب الانضمام للمجموعة ({_join_err})")
-            else:
-                raise _send_err
-        return {"success": True, "message_id": result.id}
-
-    def _do_send_with_media(self, client_manager, entity_obj, entity_label, message, image_files):
-        """إرسال وسائط (صور مفردة أو ألبوم) مع نص اختياري"""
-        results = []
-        image_paths = []
-        if image_files:
-            for img_file in image_files:
-                p = img_file.get('path', '') if isinstance(img_file, dict) else str(img_file)
-                if os.path.exists(p):
-                    image_paths.append(p)
-                else:
-                    logger.warning(f"Image file not found: {p}")
-
-        if image_paths:
-            if len(image_paths) == 1:
-                media_result = client_manager.run_coroutine(
-                    client_manager.client.send_file(
-                        entity_obj,
-                        image_paths[0],
-                        caption=message if message and message.strip() else None,
-                        parse_mode='md'
-                    )
-                )
-                results.append(media_result.id)
-            else:
-                try:
-                    media_result = client_manager.run_coroutine(
-                        client_manager.client.send_file(
-                            entity_obj,
-                            image_paths,
-                            caption=message if message and message.strip() else None,
-                            parse_mode='md'
-                        )
-                    )
-                    if hasattr(media_result, '__iter__'):
-                        for res in media_result:
-                            results.append(res.id)
-                    else:
-                        results.append(media_result.id)
-                except Exception as album_error:
-                    logger.warning(f"Failed to send as album, sending individually: {album_error}")
-                    for i, img_path in enumerate(image_paths):
-                        try:
-                            cap = (message if message and message.strip() else None) if i == 0 else None
-                            media_result = client_manager.run_coroutine(
-                                client_manager.client.send_file(
-                                    entity_obj,
-                                    img_path,
-                                    caption=cap,
-                                    parse_mode='md'
-                                )
-                            )
-                            results.append(media_result.id)
-                        except Exception as img_error:
-                            logger.error(f"Error sending individual image {i+1}: {img_error}")
-                            continue
-        elif message and message.strip():
-            return self._do_send_message(client_manager, entity_obj, entity_label, message)
-        return {"success": True, "message_ids": results}
-
-    @staticmethod
-    def _action_for_safety_report(report):
-        """
-        تحديد الإجراء التلقائي بناءً على تقرير السلامة:
-        - salam: إذا كانت المجموعة بها بوتات حماية أو تفرض الإرسال الذكي
-        - sanitize: إذا كانت بها قيود كلمات أو روابط أو هواتف
-        - skip: إذا كانت محظورة كلياً
-        - send: إذا كانت آمنة
-        """
-        if not report:
-            return 'send'
-        protection_bots = report.get('protection_bots', [])
-        requires_smart = bool(report.get('requires_smart_send'))
-        is_prot = bool(
-            report.get('is_protected') or
-            report.get('blocks_ads') or
-            requires_smart or
-            protection_bots
-        )
-        if protection_bots or requires_smart:
-            return 'salam'
-        prohibited = set(report.get('prohibited_actions', []))
-        if prohibited or report.get('keywords_to_avoid') or is_prot:
-            return 'sanitize'
-        return 'send'
-
     def send_message_async(self, user_id, entity, message, forced_action=None, wait_for_completion=False, cancel_event=None):
         """
-        إرسال رسالة مع دعم الوضع الموحّد التلقائي (auto mode) أو الإجراء المختار مسبقاً.
+        إرسال رسالة مع دعم الإجراء المختار مسبقاً من نافذة الفحص الاستباقي.
         forced_action: 'skip' | 'sanitize' | 'salam' | 'send' | None
+          None  → استخدم الإعدادات الافتراضية للمستخدم
         """
         try:
             with USERS_LOCK:
@@ -4783,71 +4614,104 @@ class TelegramManager:
                 raise Exception(f"خطأ في التحقق من التصريح: {str(auth_error)}")
 
             entity_obj = self._resolve_entity(client_manager, entity)
-            settings = load_settings(user_id) or {}
-            mode = (settings.get('sanitize_mode') or 'auto').lower()
 
-            # ── الإجراءات المحددة قسرياً ──
-            if forced_action == 'skip':
-                socketio.emit('log_update', {
-                    "message": f"⏭️ تم تخطي {entity} (قرار الفحص الاستباقي)"
-                }, to=user_id)
-                return {"success": False, "skipped": True, "message": f"تم تخطي المجموعة: {entity}"}
-            elif forced_action == 'salam':
-                return self._launch_salam(user_id, client_manager, entity_obj, entity, message,
-                                          wait_for_completion=wait_for_completion, cancel_event=cancel_event)
-            elif forced_action == 'send':
-                return self._do_send_message(client_manager, entity_obj, entity, message)
-
-            # الوضع معطّل (off)
-            if mode == 'off':
-                return self._do_send_message(client_manager, entity_obj, entity, message)
-
-            # ── 1. جلب أو فحص تقرير أمان المجموعة ──
+            # ── 1. جلب التقرير من قاعدة البيانات الخارجية (Firestore) أو فحصه وحفظه إن كانت جديدة ──
             report, is_new = self.get_or_create_group_safety_report(
                 user_id, client_manager, entity_obj, entity, sample_message=message
             )
 
-            # ── 2. القرار التلقائي الموحّد (auto mode أو salam الافتراضي) ──
-            if mode in ('auto', 'salam'):
-                plan = self._prepare_smart_send(user_id, message, report, has_media=False)
-                if plan['actions']:
+            # ── 2. تكييف الرسالة وتغيير أو حذف الكلمات والعبارات التي تستدعي الحظر ──
+            final_message, _, safety_actions = self.adapt_message_to_group_report(
+                message, report, has_media=False
+            )
+            if safety_actions:
+                socketio.emit('log_update', {
+                    "message": f"🛡️ [{entity}] تطبيق إجراءات الأمان للرسالة: {', '.join(safety_actions[:2])}"
+                }, to=user_id)
+
+            # ── 3. فحص هل المجموعة تحتوي على أي بوت -> استخدام خاصية الإرسال الذكي حتماً ──
+            has_bots = bool(
+                len(report.get('protection_bots', [])) > 0 or
+                report.get('is_protected') or
+                report.get('requires_smart_send')
+            )
+            needs_smart = has_bots or bool(report.get('requires_smart_send'))
+
+            # ── تحديد الإجراء: إجبار الإرسال الذكي إذا احتوت المجموعة على أي بوت ──────────
+            if has_bots or needs_smart:
+                action = 'salam'
+            elif forced_action is not None:
+                action = forced_action
+                if action == 'skip':
                     socketio.emit('log_update', {
-                        "message": f"🛡️ [{entity}] تطبيق إجراءات الأمان: {', '.join(plan['actions'][:2])}"
+                        "message": f"⏭️ تم تخطي {entity} (قرار الفحص الاستباقي)"
                     }, to=user_id)
+                    return {"success": False, "skipped": True,
+                            "message": f"تم تخطي المجموعة: {entity}"}
+            else:
+                action, _ = self._check_group_protection(user_id, client_manager, entity_obj, entity)
 
-                if plan['should_skip']:
-                    socketio.emit('log_update', {
-                        "message": f"⏭️ تم تخطي {entity}: {plan['reason']}"
-                    }, to=user_id)
-                    return {"success": False, "skipped": True, "message": plan['reason']}
+            # ── الإرسال الذكي للمجموعات التي بها بوتات (وضع salam) ──
+            if action == 'salam' or needs_smart or has_bots:
+                group_id = getattr(entity_obj, 'id', None) or hash(str(entity))
+                key = f"{user_id}_{group_id}"
+                if key in self._smart_running:
+                    return {"success": True, "skipped": False, "smart": True,
+                            "message": "⚠️ دورة ذكية قيد التشغيل لهذه المجموعة، ستُكمل عند انتهائها"}
+                self._smart_running.add(key)
+                t = _OSThread(
+                    target=self._run_smart_protected_send,
+                    args=(user_id, client_manager, entity_obj, entity, final_message, key, cancel_event),
+                    daemon=True,
+                    name=f"SmartSend-{key}"
+                )
+                t.start()
+                if wait_for_completion:
+                    # في وضع الإرسال الجماعي (Batch)، ننتظر حتى ينتهي الإرسال الذكي بحد أقصى آمن
+                    t.join(timeout=90)
+                    return {"success": True, "smart": True,
+                            "message": f"🧠 اكتملت معالجة الإرسال الذكي لـ {entity}"}
+                else:
+                    return {"success": True, "smart": True,
+                            "message": f"🧠 بدأ الإرسال الذكي لـ {entity} (أُرسلت 'السلام عليكم' وجارٍ استيفاء الشروط للتعديل تلقائياً)"}
 
-                if plan['use_salam']:
-                    return self._launch_salam(user_id, client_manager, entity_obj, entity,
-                                              plan['adapted_message'],
-                                              wait_for_completion=wait_for_completion,
-                                              cancel_event=cancel_event)
-
-                return self._do_send_message(client_manager, entity_obj, entity, plan['adapted_message'])
-
-            # الأوضاع اليدوية السابقة للتوافق (skip, smart, always)
-            if mode == 'skip':
-                is_prot = bool(report.get('is_protected') or report.get('protection_bots') or report.get('requires_smart_send'))
-                if is_prot:
-                    return {"success": False, "skipped": True, "message": f"تم تخطي المجموعة المحمية: {entity}"}
-                return self._do_send_message(client_manager, entity_obj, entity, message)
-
+            # نمرر action مباشرة لتجنب استدعاء _check_group_protection مرة ثانية
             cleaned_message = self._maybe_sanitize(
-                user_id, client_manager, entity_obj, entity, message, forced_action=forced_action
+                user_id, client_manager, entity_obj, entity, final_message,
+                forced_action=action
             )
             if cleaned_message is None:
-                return {"success": False, "skipped": True, "message": "تم تخطي الإرسال: المجموعة محمية أو الرسالة فارغة"}
+                return {"success": False, "skipped": True,
+                        "message": "تم تخطي الإرسال: المجموعة محمية أو الرسالة فارغة بعد التنقية"}
 
-            return self._do_send_message(client_manager, entity_obj, entity, cleaned_message)
+            try:
+                result = client_manager.run_coroutine(
+                    client_manager.client.send_message(entity_obj, cleaned_message, parse_mode='md')
+                )
+            except Exception as _send_err:
+                _err_str = str(_send_err).lower()
+                # إذا تطلب الإرسال الانضمام للمجموعة أولاً
+                if "write" in _err_str or "forbidden" in _err_str or "not a member" in _err_str or "participant" in _err_str:
+                    try:
+                        logger.info(f"Auto-joining {entity} before sending message...")
+                        from telethon.tl.functions.channels import JoinChannelRequest
+                        client_manager.run_coroutine(
+                            client_manager.client(JoinChannelRequest(entity_obj))
+                        )
+                        time.sleep(1)
+                        result = client_manager.run_coroutine(
+                            client_manager.client.send_message(entity_obj, cleaned_message, parse_mode='md')
+                        )
+                    except Exception as _join_err:
+                        raise Exception(f"لا يمكن الإرسال في {entity}: تتطلب الانضمام للمجموعة ({_join_err})")
+                else:
+                    raise _send_err
+
+            return {"success": True, "message_id": result.id}
 
         except Exception as e:
             logger.error(f"Send message error: {str(e)}")
             raise Exception(str(e))
-
 
     def get_or_create_group_safety_report(self, user_id, client_manager, entity_obj, entity_label, sample_message=None):
         """
@@ -4928,7 +4792,7 @@ class TelegramManager:
             "keywords_to_avoid": ai_res.get('keywords_to_avoid', []),
             "actions_taken": ai_res.get('actions_taken', []),
             "summary_ar": ai_res.get('summary_ar', ''),
-            "recommended_action": TelegramManager._action_for_safety_report(new_report),
+            "recommended_action": 'salam' if requires_smart_send else ('sanitize' if is_prot else 'send'),
             "can_send_media": bool(ai_res.get('can_send_media', True) and 'no_media' not in prohibited),
             "analyzed_at": time.strftime('%Y-%m-%d %H:%M:%S')
         }
@@ -5021,16 +4885,12 @@ class TelegramManager:
         """
         try:
             settings = load_settings(user_id)
-            mode = (settings.get('sanitize_mode') or 'auto').lower()
+            mode = (settings.get('sanitize_mode') or 'salam').lower()
 
             if mode == 'off':
                 return 'send', None
 
             report, _ = self.get_or_create_group_safety_report(user_id, client_manager, entity_obj, entity_label)
-
-            if mode == 'auto':
-                action = TelegramManager._action_for_safety_report(report)
-                return action, report.get('summary_ar')
 
             is_prot = bool(report.get('is_protected', False))
             bots_list = report.get('protection_bots', []) or []
@@ -5445,25 +5305,33 @@ class TelegramManager:
                 raise Exception("العميل غير مصرح")
 
             entity_obj = self._resolve_entity(client_manager, entity)
-            settings = load_settings(user_id) or {}
-            mode = (settings.get('sanitize_mode') or 'auto').lower()
 
-            if mode == 'off':
-                return self._do_send_with_media(client_manager, entity_obj, entity, "", image_files)
+            action, _reason = self._check_group_protection(user_id, client_manager, entity_obj, entity)
+            if action == 'skip':
+                return {"success": False, "skipped": True,
+                        "message": f"تم تخطي المجموعة المحمية: {entity}"}
 
-            report, is_new = self.get_or_create_group_safety_report(
-                user_id, client_manager, entity_obj, entity, sample_message=""
-            )
+            results = []
+            paths = [f['path'] for f in image_files if os.path.exists(f.get('path', ''))]
+            if not paths:
+                raise Exception("لا توجد ملفات صور صالحة")
 
-            plan = self._prepare_smart_send(user_id, "", report, has_media=True)
-            if plan['should_skip'] or not plan['can_media'] or plan['use_salam']:
-                reason = "المجموعة تحظر الوسائط أو محمية ببوتات" if (not plan['can_media'] or plan['use_salam']) else plan['reason']
-                socketio.emit('log_update', {
-                    "message": f"⏭️ تم تخطي إرسال الوسائط إلى {entity}: {reason}"
-                }, to=user_id)
-                return {"success": False, "skipped": True, "message": f"تم تخطي إرسال الصور: {reason}"}
+            if len(paths) == 1:
+                result = client_manager.run_coroutine(
+                    client_manager.client.send_file(entity_obj, paths[0])
+                )
+                results.append(result.id)
+            else:
+                media_result = client_manager.run_coroutine(
+                    client_manager.client.send_file(entity_obj, paths)
+                )
+                if hasattr(media_result, '__iter__'):
+                    for r in media_result:
+                        results.append(r.id)
+                else:
+                    results.append(media_result.id)
 
-            return self._do_send_with_media(client_manager, entity_obj, entity, "", image_files)
+            return {"success": True, "message_ids": results}
 
         except Exception as e:
             logger.error(f"Send media error: {str(e)}")
@@ -5487,46 +5355,82 @@ class TelegramManager:
                 raise Exception("العميل غير مصرح")
 
             entity_obj = self._resolve_entity(client_manager, entity)
-            settings = load_settings(user_id) or {}
-            mode = (settings.get('sanitize_mode') or 'auto').lower()
 
-            if mode == 'off':
-                return self._do_send_with_media(client_manager, entity_obj, entity, message, image_files)
+            if message:
+                _cleaned = self._maybe_sanitize(user_id, client_manager, entity_obj, entity, message)
+                if _cleaned is None:
+                    return {"success": False, "skipped": True,
+                            "message": "تم تخطي الإرسال: الرسالة بعد التنقية أصبحت فارغة"}
+                message = _cleaned
 
-            report, is_new = self.get_or_create_group_safety_report(
-                user_id, client_manager, entity_obj, entity, sample_message=message
-            )
+            results = []
 
-            plan = self._prepare_smart_send(user_id, message, report, has_media=bool(image_files))
-            if plan['actions']:
-                socketio.emit('log_update', {
-                    "message": f"🛡️ [{entity}] تطبيق إجراءات الأمان: {', '.join(plan['actions'][:2])}"
-                }, to=user_id)
+            if image_files and len(image_files) > 0:
+                try:
+                    image_paths = []
+                    for img_file in image_files:
+                        if os.path.exists(img_file['path']):
+                            image_paths.append(img_file['path'])
+                        else:
+                            logger.warning(f"Image file not found: {img_file['path']}")
 
-            if plan['should_skip']:
-                socketio.emit('log_update', {
-                    "message": f"⏭️ تم تخطي {entity}: {plan['reason']}"
-                }, to=user_id)
-                return {"success": False, "skipped": True, "message": plan['reason']}
-
-            if plan['use_salam']:
-                socketio.emit('log_update', {
-                    "message": f"🤖 [{entity}] {plan['reason']} — تشغيل الإرسال الذكي salam بالرسالة المعدلة (بدون صور)"
-                }, to=user_id)
-                return self._launch_salam(user_id, client_manager, entity_obj, entity,
-                                          plan['adapted_message'],
-                                          wait_for_completion=False)
-
-            active_images = image_files if plan['can_media'] else []
-            if image_files and not plan['can_media']:
-                socketio.emit('log_update', {
-                    "message": f"🖼️ [{entity}] المجموعة تحظر الصور — إرسال النص فقط"
-                }, to=user_id)
-
-            if active_images:
-                return self._do_send_with_media(client_manager, entity_obj, entity, plan['adapted_message'], active_images)
+                    if image_paths:
+                        if len(image_paths) == 1:
+                            media_result = client_manager.run_coroutine(
+                                client_manager.client.send_file(
+                                    entity_obj, 
+                                    image_paths[0],
+                                    caption=message if message else "📷",
+                                    parse_mode='md'
+                                )
+                            )
+                            results.append(media_result.id)
+                            logger.info(f"Successfully sent single image with message to {entity}")
+                        else:
+                            try:
+                                media_result = client_manager.run_coroutine(
+                                    client_manager.client.send_file(
+                                        entity_obj,
+                                        image_paths,
+                                        caption=message if message and message.strip() else None,
+                                        parse_mode='md'
+                                    )
+                                )
+                                if hasattr(media_result, '__iter__'):
+                                    for result in media_result:
+                                        results.append(result.id)
+                                else:
+                                    results.append(media_result.id)
+                                logger.info(f"Successfully sent {len(image_paths)} images as album to {entity}")
+                            except Exception as album_error:
+                                logger.warning(f"Failed to send as album, sending individually: {str(album_error)}")
+                                for i, img_path in enumerate(image_paths):
+                                    try:
+                                        cap = (message if message and message.strip() else None) if i == 0 else None
+                                        media_result = client_manager.run_coroutine(
+                                            client_manager.client.send_file(
+                                                entity_obj,
+                                                img_path,
+                                                caption=cap,
+                                                parse_mode='md'
+                                            )
+                                        )
+                                        results.append(media_result.id)
+                                    except Exception as img_error:
+                                        logger.error(f"Error sending individual image {i+1}: {str(img_error)}")
+                                        continue
+                except Exception as media_error:
+                    logger.error(f"Error in media sending process: {str(media_error)}")
+                    raise Exception(f"فشل إرسال الصورة: {str(media_error)[:100]}")
             else:
-                return self._do_send_message(client_manager, entity_obj, entity, plan['adapted_message'])
+                if message and message.strip():
+                    text_result = client_manager.run_coroutine(
+                        client_manager.client.send_message(entity_obj, message)
+                    )
+                    results.append(text_result.id)
+                    logger.info(f"Successfully sent text message to {entity}")
+
+            return {"success": True, "message_ids": results}
 
         except Exception as e:
             logger.error(f"Send message with media error: {str(e)}")
@@ -6919,11 +6823,11 @@ def api_save_settings():
         })
 
     current_settings = load_settings(user_id)
-    old_mode = current_settings.get('sanitize_mode', 'auto')
-    new_mode = (data.get('sanitize_mode') or 'auto').lower()
+    old_mode = current_settings.get('sanitize_mode', 'salam')
+    new_mode = (data.get('sanitize_mode') or 'salam').lower()
 
-    # إذا تغيّر الوضع من الوضع الذكي إلى غيره، أوقف جميع الدورات الذكية النشطة لهذا المستخدم
-    if old_mode in ('salam', 'auto') and new_mode not in ('salam', 'auto'):
+    # إذا تغيّر الوضع من salam إلى غيره، أوقف جميع الدورات الذكية النشطة لهذا المستخدم
+    if old_mode == 'salam' and new_mode != 'salam':
         keys_to_remove = [k for k in list(telegram_manager._smart_running) if k.startswith(f"{user_id}_")]
         for k in keys_to_remove:
             telegram_manager._smart_running.discard(k)
@@ -7274,25 +7178,16 @@ def api_database_status():
 
 
 @app.route("/api/user_logout", methods=["POST"])
-@app.route("/api/logout", methods=["POST"])
 def api_user_logout():
     req_data = request.get_json(silent=True) or {}
-    user_id = resolve_request_user_id(req_data)
+    user_id = resolve_request_user_id(req_data) if 'resolve_request_user_id' in globals() else None
     if not user_id:
-        user_id = req_data.get('target_user_id') or session.get('user_id') or 'user_1'
+        user_id = req_data.get('user_id') or session.get('user_id') or 'user_1'
+    session.pop('user_id', None)
+
     try:
         logger.info(f"User {user_id} logging out...")
-        # 1. إيقاف أي دفعات إرسال أو إيقاف مؤقت جارية للمستخدم
-        with BATCH_STATE_LOCK:
-            if user_id in BATCH_CANCEL_EVENTS:
-                BATCH_CANCEL_EVENTS[user_id].set()
-            if user_id in BATCH_PAUSE_EVENTS:
-                BATCH_PAUSE_EVENTS[user_id].set()
-            if user_id in BATCH_PAUSED_STATES:
-                st = BATCH_PAUSED_STATES.pop(user_id, None)
-                if st:
-                    _cleanup_temp_images(st.get('image_files', []))
-        # 2. إغلاق عميل التليجرام وحذفه من الذاكرة
+
         with USERS_LOCK:
             if user_id in USERS:
                 client_manager = USERS[user_id].get('client_manager')
@@ -7300,38 +7195,35 @@ def api_user_logout():
                     try:
                         if USERS[user_id].get('is_running'):
                             USERS[user_id]['is_running'] = False
+
                         if hasattr(client_manager, 'client') and client_manager.client:
                             client_manager.client.disconnect()
                             logger.info(f"Client disconnected for user {user_id}")
+
                         if hasattr(client_manager, 'stop'):
                             client_manager.stop()
+
                     except Exception as e:
                         logger.error(f"خطأ في إغلاق العميل للمستخدم {user_id}: {e}")
-                USERS[user_id]['authenticated'] = False
-                USERS[user_id]['connected'] = False
-                USERS[user_id]['is_running'] = False
+
                 del USERS[user_id]
                 logger.info(f"User data removed from memory for {user_id}")
-        # 3. حذف ملفات الجلسة المحلية ومزامنة الحذف مع GitHub
-        for _ext in ['_session.session', '_string.txt']:
-            session_file = os.path.join(SESSIONS_DIR, f"{user_id}{_ext}")
-            if os.path.exists(session_file):
-                try:
-                    os.remove(session_file)
-                    logger.info(f"Session file removed for {user_id}: {session_file}")
-                except Exception as e:
-                    logger.error(f"خطأ في حذف ملف الجلسة: {e}")
-        try:
-            github_delete_session(user_id)
-        except Exception:
-            pass
-        # 4. إيقاف النشر الدوري
+
+        session_file = os.path.join(SESSIONS_DIR, f"{user_id}_session.session")
+        if os.path.exists(session_file):
+            try:
+                os.remove(session_file)
+                logger.info(f"Session file removed for {user_id}")
+            except Exception as e:
+                logger.error(f"خطأ في حذف ملف الجلسة: {e}")
+
+        # إيقاف النشر الدوري فوراً عند تسجيل الخروج
         try:
             rotating_manager.stop(user_id)
             logger.info(f"Rotating send stopped on logout for {user_id}")
         except Exception as _re:
             logger.error(f"خطأ في إيقاف النشر الدوري عند الخروج: {_re}")
-        # 5. تنظيف الإعدادات المحفوظة
+
         settings_file = os.path.join(SESSIONS_DIR, f"{user_id}.json")
         if os.path.exists(settings_file):
             try:
@@ -7347,32 +7239,30 @@ def api_user_logout():
                 logger.info(f"Settings cleared for {user_id}")
             except Exception as e:
                 logger.error(f"خطأ في مسح الإعدادات: {e}")
-        # 6. تفريغ معرف الجلسة من الكوكي إذا كان مطابقاً
-        if session.get('user_id') == user_id:
-            session.pop('user_id', None)
-        # 7. إرسال أحداث التحديث والتسجيل خارج النظام عبر Socket.IO
-        logout_payload = {
-            "user_id": user_id,
+
+        socketio.emit('log_update', {
+            "message": "🚪 تم تسجيل الخروج وإنهاء جلسة التليجرام"
+        }, to=user_id)
+
+        socketio.emit('connection_status', {
+            "status": "disconnected"
+        }, to=user_id)
+
+        socketio.emit('login_status', {
             "logged_in": False,
             "connected": False,
-            "authenticated": False,
             "awaiting_code": False,
             "awaiting_password": False,
             "is_running": False
-        }
-        socketio.emit('log_update', {"message": f"🚪 تم تسجيل الخروج من الحساب ({user_id}) بنجاح"}, to=user_id)
-        socketio.emit('log_update', {"message": f"🚪 تم تسجيل الخروج من الحساب ({user_id}) بنجاح"})
-        socketio.emit('connection_status', {"status": "disconnected", "user_id": user_id}, to=user_id)
-        socketio.emit('login_status', logout_payload, to=user_id)
-        socketio.emit('login_status', logout_payload)
-        socketio.emit('account_updated', logout_payload)
-        socketio.emit('session_revoked', {"user_id": user_id, "reason": "تم تسجيل الخروج بناءً على طلبك"})
+        }, to=user_id)
+
         logger.info(f"User {user_id} logged out successfully")
+
         return jsonify({
             "success": True,
-            "message": f"✅ تم تسجيل الخروج من الحساب {user_id} بنجاح",
-            "user_id": user_id
+            "message": "✅ تم تسجيل الخروج وإنهاء جلسة التليجرام بنجاح"
         })
+
     except Exception as e:
         logger.error(f"خطأ في تسجيل الخروج للمستخدم {user_id}: {str(e)}")
         return jsonify({
@@ -7760,61 +7650,155 @@ def api_pre_send_scan():
     })
 
 
-def _execute_batch_send(user_id, groups_list, message, image_files, batch_interval,
-                        cancel_event, pause_event, start_from_index=1, initial_stats=None,
-                        saved_batch_id=None, saved_batch_entries=None, pre_scan_action=None,
-                        force_salam=False, is_batch=True, content_type="رسالة", images=None):
-    try:
-        initial_stats = initial_stats or {}
-        successful = initial_stats.get('successful', 0)
-        failed = initial_stats.get('failed', 0)
-        skipped_count = initial_stats.get('skipped_count', 0)
-        batch_id = saved_batch_id or str(uuid.uuid4())
-        batch_entries = list(saved_batch_entries or [])
+@app.route("/api/send_now/pause", methods=["POST"])
+@app.route("/api/send_now/stop", methods=["POST"])
+def api_send_now_stop():
+    """إيقاف فوري مؤقت لعملية الإرسال مع إمكانية الاستئناف لاحقاً"""
+    req_data = request.get_json(silent=True) or {}
+    user_id = resolve_request_user_id(req_data) if 'resolve_request_user_id' in globals() else None
+    if not user_id:
+        user_id = req_data.get('user_id') or session.get('user_id') or 'user_1'
 
-        for i in range(start_from_index, len(groups_list) + 1):
-            group = groups_list[i - 1]
-            # ── فحص إشارة الإيقاف المؤقت الفوري بطلب من المستخدم ──
-            if pause_event.is_set():
-                with BATCH_STATE_LOCK:
-                    BATCH_PAUSED_STATES[user_id] = {
-                        "groups_list": list(groups_list),
-                        "next_index": i,
-                        "total": len(groups_list),
-                        "successful": successful,
-                        "failed": failed,
-                        "skipped_count": skipped_count,
-                        "message": message,
-                        "images": images,
-                        "image_files": [dict(f) for f in image_files],
-                        "batch_interval": batch_interval,
-                        "batch_id": batch_id,
-                        "batch_entries": list(batch_entries),
-                        "pre_scan_action": pre_scan_action,
-                        "force_salam": force_salam,
-                        "is_batch": is_batch,
-                        "content_type": content_type,
-                        "paused_at": time.time()
-                    }
-                pause_msg = f"⏸️ تم إيقاف الإرسال مؤقتاً عند المجموعة {i}/{len(groups_list)}. يمكنك الاستئناف في أي وقت."
-                logger.info(pause_msg)
-                socketio.emit('log_update', {"message": pause_msg}, to=user_id)
-                socketio.emit('send_progress', {
-                    "status": "paused",
-                    "index": i,
-                    "total": len(groups_list),
-                    "successful": successful,
-                    "skipped": skipped_count,
-                    "failed": failed,
-                    "message": pause_msg
-                }, to=user_id)
-                return
-            # ── فحص إشارة الإيقاف اللطيف بطلب من المستخدم (P3) ──
+    state = BATCH_SENDER_STATES.get(user_id)
+    if user_id and user_id in BATCH_CANCEL_EVENTS:
+        BATCH_CANCEL_EVENTS[user_id].set()
+        if state:
+            state["status"] = "paused"
+        logger.info(f"🛑 تم إرسال إشارة إيقاف الإرسال الفوري للمستخدم: {user_id}")
+        idx = state["current_index"] if state else 0
+        tot = len(state["groups_list"]) if state else 0
+        rem = max(0, tot - idx)
+        pause_msg = f"⏸️ تم إيقاف الإرسال مؤقتاً فوراً عند المجموعة {idx} من {tot}. يمكنك الاستئناف في أي وقت."
+        socketio.emit('log_update', {"message": pause_msg}, to=user_id)
+        socketio.emit('send_progress', {
+            "status": "paused",
+            "index": idx,
+            "total": tot,
+            "remaining": rem,
+            "message": pause_msg
+        }, to=user_id)
+        return jsonify({
+            "success": True,
+            "paused": True,
+            "current_index": idx,
+            "total": tot,
+            "remaining": rem,
+            "message": "تم إيقاف الإرسال مؤقتاً، اضغط 'استئناف' للمتابعة من حيث توقفت"
+        })
+    return jsonify({"success": True, "message": "لا توجد عملية إرسال نشطة لإيقافها"})
+
+
+@app.route("/api/send_now/resume", methods=["POST"])
+def api_send_now_resume():
+    """استئناف عملية الإرسال من حيث توقفت للمستخدم"""
+    req_data = request.get_json(silent=True) or {}
+    user_id = resolve_request_user_id(req_data) if 'resolve_request_user_id' in globals() else None
+    if not user_id:
+        user_id = req_data.get('user_id') or session.get('user_id') or 'user_1'
+
+    state = BATCH_SENDER_STATES.get(user_id)
+    if not state or state.get("status") != "paused":
+        return jsonify({
+            "success": False,
+            "message": "❌ لا توجد عملية إرسال موقوفة مؤقتاً لاستئنافها"
+        })
+
+    tot = len(state["groups_list"])
+    curr = state.get("current_index", 0)
+    if curr >= tot:
+        return jsonify({
+            "success": False,
+            "message": "❌ تم إكمال الإرسال لجميع المجموعات بالفعل"
+        })
+
+    # إنشاء حدث إلغاء جديد للاستئناف
+    cancel_event = threading.Event()
+    BATCH_CANCEL_EVENTS[user_id] = cancel_event
+    state["cancel_event"] = cancel_event
+    state["status"] = "sending"
+
+    rem = tot - curr
+    resume_msg = f"▶️ استئناف الإرسال الفوري: بدء الإرسال للمجموعات المتبقية ({rem} من أصل {tot})..."
+    socketio.emit('log_update', {"message": resume_msg}, to=user_id)
+    socketio.emit('send_progress', {
+        "status": "resumed",
+        "index": curr,
+        "total": tot,
+        "remaining": rem,
+        "message": resume_msg
+    }, to=user_id)
+
+    def run_resume():
+        _execute_batch_send(user_id, state, is_resume=True)
+
+    _OSThread(target=run_resume, daemon=True).start()
+
+    return jsonify({
+        "success": True,
+        "message": resume_msg,
+        "current_index": curr,
+        "total": tot,
+        "remaining": rem
+    })
+
+
+@app.route("/api/send_now/status", methods=["GET"])
+def api_send_now_status():
+    """الحصول على حالة دفعة الإرسال الفوري الحالية"""
+    user_id = request.args.get('user_id') or session.get('user_id', 'user_1')
+    state = BATCH_SENDER_STATES.get(user_id)
+    if not state:
+        return jsonify({"has_batch": False, "status": "idle"})
+    tot = len(state.get("groups_list", []))
+    idx = state.get("current_index", 0)
+    return jsonify({
+        "has_batch": True,
+        "status": state.get("status", "idle"),
+        "index": idx,
+        "total": tot,
+        "successful": state.get("successful", 0),
+        "failed": state.get("failed", 0),
+        "skipped": state.get("skipped_count", 0),
+        "remaining": max(0, tot - idx)
+    })
+
+
+def _execute_batch_send(user_id, state, is_resume=False):
+    """محرك الإرسال الفوري للمجموعات مع الدعم الكامل للإيقاف الفوري والاستئناف"""
+    groups_list = state['groups_list']
+    cancel_event = state['cancel_event']
+    message = state['message']
+    image_files = state['image_files']
+    batch_interval = state['batch_interval']
+    pre_scan_action = state['pre_scan_action']
+    force_salam = state['force_salam']
+    batch_entries = state['batch_entries']
+    batch_id = state['batch_id']
+    total = len(groups_list)
+
+    start_i = state['current_index'] if is_resume else 0
+
+    try:
+        for idx in range(start_i, total):
+            i = idx + 1
+            group = groups_list[idx]
+
+            # ── فحص فوري لإشارة الإيقاف قبل البدء في المجموعة ──
             if cancel_event.is_set():
-                stop_msg = f"🛑 تم إيقاف الإرسال يدوياً بطلب المستخدم بعد فحص {i-1} مجموعة"
+                state['status'] = 'paused'
+                state['current_index'] = idx
+                rem = total - idx
+                stop_msg = f"⏸️ تم إيقاف الإرسال مؤقتاً فوراً عند المجموعة {idx} من أصل {total} (متبقي {rem})"
                 logger.info(stop_msg)
                 socketio.emit('log_update', {"message": stop_msg}, to=user_id)
-                break
+                socketio.emit('send_progress', {
+                    "status": "paused",
+                    "index": idx,
+                    "total": total,
+                    "remaining": rem,
+                    "message": stop_msg
+                }, to=user_id)
+                return
 
             try:
                 curr_message = message
@@ -7828,7 +7812,7 @@ def _execute_batch_send(user_id, groups_list, message, image_files, batch_interv
 
                 entity_obj = telegram_manager._resolve_entity(cm, group)
 
-                # ── 2. فحص العضوية المسبق والانضمام التلقائي المنظم (P1) ──
+                # ── 2. فحص العضوية المسبق والانضمام التلقائي المنظم ──
                 is_member = False
                 try:
                     is_member = cm.run_coroutine(telegram_manager._is_member_of(cm, entity_obj))
@@ -7839,10 +7823,9 @@ def _execute_batch_send(user_id, groups_list, message, image_files, batch_interv
                 join_success = False
                 if not is_member:
                     socketio.emit('log_update', {
-                        "message": f"🔗 [{i}/{len(groups_list)}] الحساب ليس عضواً في {group} — جاري الانضمام التلقائي المنظم..."
+                        "message": f"🔗 [{i}/{total}] الحساب ليس عضواً في {group} — جاري الانضمام التلقائي المنظم..."
                     }, to=user_id)
 
-                    # تطبيق JoinRateLimiter لتفادي قيود وحظر الانضمام السريع
                     join_limiter.acquire_sync()
 
                     try:
@@ -7858,62 +7841,56 @@ def _execute_batch_send(user_id, groups_list, message, image_files, batch_interv
                         is_member = True
                         logger.info(f"✅ تم الانضمام التلقائي بنجاح إلى {group}")
                         socketio.emit('log_update', {
-                            "message": f"✅ [{i}/{len(groups_list)}] تم الانضمام بنجاح إلى {group} — انتظار ثانيتين للاستقرار"
+                            "message": f"✅ [{i}/{total}] تم الانضمام بنجاح إلى {group} — انتظار ثانيتين للاستقرار"
                         }, to=user_id)
                         time.sleep(2)
                     except UserAlreadyParticipantError:
                         join_success = True
                         is_member = True
                     except InviteRequestSentError:
-                        skip_msg = f"⏳ [{i}/{len(groups_list)}] تم التخطي: بانتظار موافقة المشرف في {group}"
+                        skip_msg = f"⏳ [{i}/{total}] تم طلب الانضمام لـ {group} وبانتظار موافقة المشرفين"
                         logger.info(skip_msg)
                         socketio.emit('log_update', {"message": skip_msg}, to=user_id)
                         socketio.emit('send_progress', {
-                            "group": group,
-                            "index": i,
-                            "total": len(groups_list),
+                            "group": group, "index": i, "total": total,
                             "status": "waiting_approval",
                             "reason": "تم التخطي: بانتظار موافقة المشرف",
-                            "emoji": "⏳",
-                            "message": skip_msg
+                            "emoji": "⏳", "message": skip_msg
                         }, to=user_id)
-                        skipped_count += 1
+                        state['skipped_count'] += 1
+                        state['current_index'] = i
                         continue
                     except ChannelPrivateError:
-                        skip_msg = f"🚫 [{i}/{len(groups_list)}] تم التخطي: الحساب محظور من {group} أو القناة خاصة"
+                        skip_msg = f"🚫 [{i}/{total}] تم التخطي: الحساب محظور من {group} أو القناة خاصة"
                         logger.warning(skip_msg)
                         socketio.emit('log_update', {"message": skip_msg}, to=user_id)
                         socketio.emit('send_progress', {
-                            "group": group,
-                            "index": i,
-                            "total": len(groups_list),
+                            "group": group, "index": i, "total": total,
                             "status": "banned",
                             "reason": "تم التخطي: الحساب محظور من المجموعة",
-                            "emoji": "🚫",
-                            "message": skip_msg
+                            "emoji": "🚫", "message": skip_msg
                         }, to=user_id)
-                        skipped_count += 1
+                        state['skipped_count'] += 1
+                        state['current_index'] = i
                         continue
                     except (InviteHashExpiredError, InviteHashInvalidError, UsernameInvalidError, UsernameNotOccupiedError) as link_err:
-                        skip_msg = f"⏭️ [{i}/{len(groups_list)}] تم التخطي: رابط غير صالح أو منتهي الصلاحية ({group})"
+                        skip_msg = f"⏭️ [{i}/{total}] تم التخطي: رابط غير صالح أو منتهي الصلاحية ({group})"
                         logger.warning(skip_msg)
                         socketio.emit('log_update', {"message": skip_msg}, to=user_id)
                         socketio.emit('send_progress', {
-                            "group": group,
-                            "index": i,
-                            "total": len(groups_list),
+                            "group": group, "index": i, "total": total,
                             "status": "skipped",
                             "reason": "تم التخطي: رابط غير صالح",
-                            "emoji": "⏭️",
-                            "message": skip_msg
+                            "emoji": "⏭️", "message": skip_msg
                         }, to=user_id)
-                        skipped_count += 1
+                        state['skipped_count'] += 1
+                        state['current_index'] = i
                         continue
                     except FloodWaitError as fwe:
                         wait_secs = fwe.seconds + random.uniform(3, 8)
                         logger.warning(f"⚠️ FloodWait أثناء الانضمام لـ {group}: انتظار {wait_secs:.0f} ثانية")
                         socketio.emit('log_update', {
-                            "message": f"⏳ [{i}/{len(groups_list)}] قيد FloodWait أثناء الانضمام لـ {group}: انتظار {wait_secs:.0f}ث..."
+                            "message": f"⏳ [{i}/{total}] قيد FloodWait أثناء الانضمام لـ {group}: انتظار {wait_secs:.0f}ث..."
                         }, to=user_id)
                         time.sleep(wait_secs)
                         try:
@@ -7925,310 +7902,184 @@ def _execute_batch_send(user_id, groups_list, message, image_files, batch_interv
                             is_member = True
                             time.sleep(2)
                         except Exception as fwe_retry:
-                            fail_msg = f"❌ [{i}/{len(groups_list)}] فشل الانضمام لـ {group} بعد انتظار FloodWait: {fwe_retry}"
+                            fail_msg = f"❌ [{i}/{total}] فشل الانضمام لـ {group} بعد انتظار FloodWait: {fwe_retry}"
                             logger.error(fail_msg)
                             socketio.emit('log_update', {"message": fail_msg}, to=user_id)
                             socketio.emit('send_progress', {
-                                "group": group,
-                                "index": i,
-                                "total": len(groups_list),
-                                "status": "error",
-                                "reason": f"فشل: FloodWait ({fwe.seconds}s)",
-                                "emoji": "❌",
-                                "message": fail_msg
+                                "group": group, "index": i, "total": total,
+                                "status": "error", "reason": f"فشل: FloodWait ({fwe.seconds}s)",
+                                "emoji": "❌", "message": fail_msg
                             }, to=user_id)
-                            failed += 1
+                            state['failed'] += 1
+                            state['current_index'] = i
                             continue
                     except Exception as join_err:
                         err_str = str(join_err)
                         reason = "تم التخطي: الحساب وصل للحد الأقصى (500 مجموعة)" if ("too much" in err_str.lower() or "500" in err_str) else f"تعذر الانضمام ({err_str[:60]})"
-                        skip_msg = f"⏭️ [{i}/{len(groups_list)}] {reason} لـ {group}"
+                        skip_msg = f"⏭️ [{i}/{total}] {reason} لـ {group}"
                         logger.warning(skip_msg)
                         socketio.emit('log_update', {"message": skip_msg}, to=user_id)
                         socketio.emit('send_progress', {
-                            "group": group,
-                            "index": i,
-                            "total": len(groups_list),
-                            "status": "skipped",
-                            "reason": reason,
-                            "emoji": "⏭️",
-                            "message": skip_msg
+                            "group": group, "index": i, "total": total,
+                            "status": "skipped", "reason": reason,
+                            "emoji": "⏭️", "message": skip_msg
                         }, to=user_id)
-                        skipped_count += 1
+                        state['skipped_count'] += 1
+                        state['current_index'] = i
                         continue
 
-                # 3. التحقق من تقرير الأمان وتحديد قرار الإرسال الذكي التلقائي الموحّد
+                # 3. التحقق من تقرير الأمان وتكييف الرسالة
                 report, is_new = telegram_manager.get_or_create_group_safety_report(
                     user_id, cm, entity_obj, group, sample_message=message
                 )
+                curr_message, can_media, safety_actions = telegram_manager.adapt_message_to_group_report(
+                    message, report, has_media=bool(image_files)
+                )
+                curr_images = image_files if can_media else []
+                if safety_actions:
+                    socketio.emit('log_update', {
+                        "message": f"🛡️ [{i}/{total}] تلافي مسببات الحظر في {group}: {', '.join(safety_actions[:2])}"
+                    }, to=user_id)
 
-                # إذا حدد المستخدم إجراء التخطي المسبق
                 if pre_scan_action == 'skip':
-                    skip_msg = f"⏭️ [{i}/{len(groups_list)}] تم تخطي {group} (بناءً على اختيار المستخدم)"
+                    skip_msg = f"⏭️ [{i}/{total}] تم تخطي {group} (بناءً على اختيارك)"
                     socketio.emit('log_update', {"message": skip_msg}, to=user_id)
                     socketio.emit('send_progress', {
-                        "group": group,
-                        "index": i,
-                        "total": len(groups_list),
-                        "status": "skipped",
-                        "reason": "تم التخطي: بناءً على اختيار المستخدم",
-                        "emoji": "⏭️",
-                        "message": skip_msg
+                        "group": group, "index": i, "total": total,
+                        "status": "skipped", "reason": "تم التخطي: بناءً على اختيار المستخدم",
+                        "emoji": "⏭️", "message": skip_msg
                     }, to=user_id)
-                    skipped_count += 1
+                    state['skipped_count'] += 1
+                    state['current_index'] = i
                     continue
 
-                user_settings = load_settings(user_id) or {}
-                send_mode = (user_settings.get('sanitize_mode') or 'auto').lower()
+                # 4. الإرسال الفعلي
+                result = telegram_manager.send_message_sync(
+                    user_id=user_id,
+                    target=entity_obj,
+                    message=randomize_message(curr_message) if curr_message else '',
+                    image_paths=[f['path'] for f in curr_images] if curr_images else None,
+                    force_salam=force_salam
+                )
 
-                if pre_scan_action == 'salam' or force_salam:
-                    use_salam = True
-                    curr_message = message
-                    curr_images = []
-                    plan_actions = ["إجبار الإرسال الذكي (salam)"]
-                elif send_mode == 'off':
-                    use_salam = False
-                    curr_message = message
-                    curr_images = image_files
-                    plan_actions = []
-                else:
-                    plan = telegram_manager._prepare_smart_send(
-                        user_id, message, report, has_media=bool(image_files)
-                    )
-                    plan_actions = plan.get('actions', [])
-                    if plan.get('should_skip'):
-                        skip_msg = f"⏭️ [{i}/{len(groups_list)}] تم تخطي {group}: {plan['reason']}"
-                        socketio.emit('log_update', {"message": skip_msg}, to=user_id)
-                        socketio.emit('send_progress', {
-                            "group": group,
-                            "index": i,
-                            "total": len(groups_list),
-                            "status": "skipped",
-                            "reason": f"تم التخطي: {plan['reason']}",
-                            "emoji": "⏭️",
-                            "message": skip_msg
-                        }, to=user_id)
-                        skipped_count += 1
-                        continue
-
-                    use_salam = plan.get('use_salam', False)
-                    curr_message = plan.get('adapted_message', message)
-                    curr_images = image_files if plan.get('can_media', True) else []
-
-                if plan_actions:
-                    socketio.emit('log_update', {
-                        "message": f"🛡️ [{i}/{len(groups_list)}] إجراءات الأمان لـ {group}: {', '.join(plan_actions[:2])}"
-                    }, to=user_id)
-
-                # 4. محاولة الإرسال مع معالجة FloodWaitError وإعادة المحاولة لمرة واحدة (P2)
-                send_attempts = 0
-                max_send_attempts = 2
-                result = None
-
-                while send_attempts < max_send_attempts:
-                    send_attempts += 1
-                    try:
-                        if use_salam:
-                            socketio.emit('log_update', {
-                                "message": f"🤖 [{i}/{len(groups_list)}] تشغيل الإرسال الذكي salam لـ {group}..."
-                            }, to=user_id)
-                            # في الإرسال الجماعي: إطلاق salam في الخلفية دون حجب باقي المجموعات
-                            result = telegram_manager._launch_salam(
-                                user_id, cm, entity_obj, group, curr_message,
-                                wait_for_completion=False, cancel_event=cancel_event
-                            )
-                        elif curr_images and curr_message:
-                            result = telegram_manager._do_send_with_media(
-                                cm, entity_obj, group, curr_message, curr_images
-                            )
-                        elif curr_images:
-                            result = telegram_manager._do_send_with_media(
-                                cm, entity_obj, group, "", curr_images
-                            )
-                        else:
-                            result = telegram_manager._do_send_message(
-                                cm, entity_obj, group, curr_message
-                            )
-                        break
-                    except FloodWaitError as fwe:
-                        if send_attempts < max_send_attempts:
-                            wait_s = fwe.seconds + random.uniform(3, 8)
-                            logger.warning(f"⚠️ FloodWait: انتظار {wait_s:.0f}s قبل إعادة محاولة الإرسال لـ {group}")
-                            socketio.emit('log_update', {
-                                "message": f"⏳ [{i}/{len(groups_list)}] FloodWait: انتظار {wait_s:.0f} ثانية قبل إعادة محاولة الإرسال لـ {group}..."
-                            }, to=user_id)
-                            time.sleep(wait_s)
-                        else:
-                            raise fwe
-
-                # 6. تحليل نتيجة الإرسال وتحديث الواجهة (P3)
-                if isinstance(result, dict) and result.get('skipped'):
-                    reason = result.get('message', 'محمية')
-                    skip_msg = f"⏭️ [{i}/{len(groups_list)}] تم تخطي {group}: {reason}"
-                    socketio.emit('log_update', {"message": skip_msg}, to=user_id)
-                    socketio.emit('send_progress', {
-                        "group": group,
-                        "index": i,
-                        "total": len(groups_list),
-                        "status": "skipped",
-                        "reason": f"تم التخطي: {reason}",
-                        "emoji": "⏭️",
-                        "message": skip_msg
-                    }, to=user_id)
-                    skipped_count += 1
-                else:
+                if result.get('success'):
                     status_type = "joined_then_sent" if join_success else "success"
-                    reason = "تم الانضمام ثم الإرسال بنجاح" if join_success else "تم الإرسال بنجاح"
-                    emoji_icon = "✅"
-                    success_msg = f"{emoji_icon} [{i}/{len(groups_list)}] {reason} إلى: {group}"
-                    logger.info(success_msg)
-                    socketio.emit('log_update', {"message": success_msg}, to=user_id)
+                    succ_reason = "تم الانضمام والإرسال بنجاح ✅" if join_success else "تم الإرسال بنجاح ✅"
+                    succ_msg = f"✅ [{i}/{total}] تم الإرسال إلى {group} بنجاح"
+                    log_user_event(user_id, 'SEND', f"Message sent to {group}")
+                    socketio.emit('log_update', {"message": succ_msg}, to=user_id)
                     socketio.emit('send_progress', {
-                        "group": group,
-                        "index": i,
-                        "total": len(groups_list),
-                        "status": status_type,
-                        "reason": reason,
-                        "emoji": emoji_icon,
-                        "message": success_msg
+                        "group": group, "index": i, "total": total,
+                        "status": status_type, "reason": succ_reason,
+                        "emoji": "✅", "message": succ_msg
                     }, to=user_id)
-                    successful += 1
 
-                    msg_id = None
-                    if isinstance(result, dict):
-                        msg_id = result.get('message_id') or (result.get('message_ids') or [None])[0]
-                    if msg_id:
-                        batch_entries.append({"group": group, "msg_id": msg_id})
+                    state['successful'] += 1
+                    state['current_index'] = i
 
                     with USERS_LOCK:
                         if user_id in USERS:
-                            USERS[user_id]['stats']['sent'] += 1
+                            USERS[user_id]['stats']['sent_messages'] += 1
                             socketio.emit('stats_update', USERS[user_id]['stats'], to=user_id)
 
-            except Exception as e:
-                error_msg = str(e)
-                error_lower = error_msg.lower()
-                if "banned" in error_lower or "ban" in error_lower:
-                    error_type = "الحساب محظور أو مكتوم في هذه المجموعة"
-                elif "flood" in error_lower:
-                    import re as _re
-                    m = _re.search(r'(\d+)', error_msg)
-                    wait_s = int(m.group(1)) if m else '؟'
-                    error_type = f"تجاوز حد الإرسال المؤقت (FloodWait: {wait_s}s)"
-                    if isinstance(wait_s, int) and wait_s > 0:
-                        logger.warning(f"🛑 تم إيقاف الحملة مؤقتاً لمدة {wait_s} ثانية حتى انقضاء الـ FloodWait لحماية الحساب والردود...")
-                        time.sleep(min(wait_s + 2, 300))
-                elif "slow" in error_lower:
-                    error_type = "مفعّل الوضع البطيء (Slow Mode) في المجموعة"
-                elif "timeout" in error_lower:
-                    error_type = "انتهت مهلة الاتصال بخادم تيليجرام"
-                elif "expired" in error_lower or "منتهي" in error_msg:
-                    error_type = "رابط الدعوة منتهي الصلاحية"
-                elif "approval" in error_lower or "موافقة" in error_msg or "request" in error_lower:
-                    error_type = "المجموعة خاصة وبانتظار موافقة المشرفين"
-                elif "too much" in error_lower or "الحد الأقصى" in error_msg:
-                    error_type = "الحساب وصل للحد الأقصى من القنوات والمجموعات (500)"
-                elif "private" in error_lower or "join" in error_lower or "تتطلب الانضمام" in error_msg:
-                    error_type = "تتطلب الانضمام للمجموعة أو موافقة المشرفين"
-                elif "write" in error_lower or "forbidden" in error_lower or "غير مسموح" in error_msg:
-                    error_type = "غير مسموح بالنشر (مخصصة للمشرفين فقط أو النشر مقفل)"
-                elif "not found" in error_lower or "invalid" in error_lower or "username" in error_lower:
-                    error_type = "المجموعة غير موجودة أو الرابط غير صالح"
-                elif "cannot find any entity" in error_lower or "لا يمكن الوصول" in error_msg:
-                    error_type = "تعذر الوصول للمجموعة (تأكد من صحة الرابط أو الانضمام)"
-                elif "يُعاد تشغيله" in error_msg or "restart" in error_lower:
-                    error_type = "العميل يُعاد تشغيله، حاول مجدداً"
+                    batch_entries.append({
+                        "group": group,
+                        "status": "success",
+                        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    })
                 else:
-                    error_type = error_msg[:120]
+                    error_msg = result.get('error', 'Unknown error')
+                    err_lower = error_msg.lower()
+                    if any(k in err_lower for k in ["auth_key_unregistered", "session_revoked", "user_deactivated"]):
+                        handle_session_revoked(user_id, "تم رصد إلغاء الجلسة أثناء الإرسال")
+                        state['status'] = 'cancelled'
+                        return
+                    fail_msg = f"❌ [{i}/{total}] فشل إلى {group}: {error_msg[:100]}"
+                    log_user_event(user_id, 'ERROR', fail_msg)
+                    socketio.emit('log_update', {"message": fail_msg}, to=user_id)
+                    socketio.emit('send_progress', {
+                        "group": group, "index": i, "total": total,
+                        "status": "error", "reason": f"فشل: {error_msg[:60]}",
+                        "emoji": "❌", "message": fail_msg
+                    }, to=user_id)
+                    state['failed'] += 1
+                    state['current_index'] = i
 
-                fail_msg = f"❌ [{i}/{len(groups_list)}] فشل إلى {group}: {error_type}"
-                log_user_event(user_id, 'ERROR', fail_msg)
-                logger.error(f"Send error to {group}: {error_msg}")
+            except Exception as e_grp:
+                err_str = str(e_grp)
+                if any(k in err_str.lower() for k in ["auth_key_unregistered", "session_revoked", "user_deactivated"]):
+                    handle_session_revoked(user_id, "تم رصد إلغاء الجلسة أثناء الإرسال")
+                    state['status'] = 'cancelled'
+                    return
+                fail_msg = f"❌ [{i}/{total}] فشل إلى {group}: {err_str[:100]}"
                 socketio.emit('log_update', {"message": fail_msg}, to=user_id)
                 socketio.emit('send_progress', {
-                    "group": group,
-                    "index": i,
-                    "total": len(groups_list),
-                    "status": "error",
-                    "reason": f"فشل: {error_type}",
-                    "emoji": "❌",
-                    "error_type": error_type,
-                    "message": fail_msg
+                    "group": group, "index": i, "total": total,
+                    "status": "error", "reason": f"فشل: {err_str[:60]}",
+                    "emoji": "❌", "message": fail_msg
                 }, to=user_id)
+                state['failed'] += 1
+                state['current_index'] = i
 
-                failed += 1
-                with USERS_LOCK:
-                    if user_id in USERS:
-                        USERS[user_id]['stats']['errors'] += 1
-                        socketio.emit('stats_update', USERS[user_id]['stats'], to=user_id)
+            # ── فحص فوري بعد إنهاء المجموعة الحالية ──
+            if cancel_event.is_set():
+                state['status'] = 'paused'
+                rem = total - i
+                stop_msg = f"⏸️ تم إيقاف الإرسال مؤقتاً فوراً بعد إرسال المجموعة {i} من {total} (متبقي {rem})"
+                logger.info(stop_msg)
+                socketio.emit('log_update', {"message": stop_msg}, to=user_id)
+                socketio.emit('send_progress', {
+                    "status": "paused",
+                    "index": i,
+                    "total": total,
+                    "remaining": rem,
+                    "message": stop_msg
+                }, to=user_id)
+                return
 
-            finally:
-                # ── فاصل زمني ديناميكي آمن بين كل مجموعة وأخرى (P2) ──
-                if i < len(groups_list) and not cancel_event.is_set() and not pause_event.is_set():
-                    user_interval = max(5, min(60, batch_interval))
-                    dynamic_delay = random.uniform(user_interval, user_interval + 3.0)
-                    logger.info(f"⏳ فاصل زمني ديناميكي: انتظار {dynamic_delay:.1f} ثانية قبل المجموعة التالية...")
-                    sleep_steps = int(dynamic_delay * 10)
-                    for _ in range(sleep_steps):
-                        if cancel_event.is_set() or pause_event.is_set():
-                            break
-                        time.sleep(0.1)
-                    if pause_event.is_set():
-                        with BATCH_STATE_LOCK:
-                            BATCH_PAUSED_STATES[user_id] = {
-                                "groups_list": list(groups_list),
-                                "next_index": i + 1,
-                                "total": len(groups_list),
-                                "successful": successful,
-                                "failed": failed,
-                                "skipped_count": skipped_count,
-                                "message": message,
-                                "images": images,
-                                "image_files": [dict(f) for f in image_files],
-                                "batch_interval": batch_interval,
-                                "batch_id": batch_id,
-                                "batch_entries": list(batch_entries),
-                                "pre_scan_action": pre_scan_action,
-                                "force_salam": force_salam,
-                                "is_batch": is_batch,
-                                "content_type": content_type,
-                                "paused_at": time.time()
-                            }
-                        pause_msg = f"⏸️ تم إيقاف الإرسال مؤقتاً عند المجموعة {i}/{len(groups_list)}. يمكنك الاستئناف في أي وقت."
-                        logger.info(pause_msg)
-                        socketio.emit('log_update', {"message": pause_msg}, to=user_id)
-                        socketio.emit('send_progress', {
-                            "status": "paused",
-                            "index": i + 1,
-                            "total": len(groups_list),
-                            "successful": successful,
-                            "skipped": skipped_count,
-                            "failed": failed,
-                            "message": pause_msg
-                        }, to=user_id)
-                        return
+            # ── فاصل زمني مع فحص إيقاف فوري (cancel_event.wait) ──
+            if i < total:
+                user_interval = max(3, min(60, batch_interval))
+                dynamic_delay = random.uniform(user_interval, user_interval + 2.5)
+                # cancel_event.wait يستيقظ في 0ms فور استدعاء set() دون انتظار!
+                if cancel_event.wait(dynamic_delay):
+                    state['status'] = 'paused'
+                    rem = total - i
+                    stop_msg = f"⏸️ تم إيقاف الإرسال مؤقتاً فوراً عند المجموعة {i} من {total} (متبقي {rem})"
+                    logger.info(stop_msg)
+                    socketio.emit('log_update', {"message": stop_msg}, to=user_id)
+                    socketio.emit('send_progress', {
+                        "status": "paused",
+                        "index": i,
+                        "total": total,
+                        "remaining": rem,
+                        "message": stop_msg
+                    }, to=user_id)
+                    return
 
-        # ── ملخص نهائي متكامل في نهاية الدفعة (P3) ──
-        summary_msg = f"📊 انتهى الإرسال: ✅ {successful} نجح | ⏭️ {skipped_count} تخطي | ❌ {failed} فشل من إجمالي {len(groups_list)} مجموعة"
+        # ── اكتمل الإرسال لجميع المجموعات ──
+        state['status'] = 'completed'
+        state['current_index'] = total
+        summary_msg = f"📊 انتهى الإرسال: ✅ {state['successful']} نجح | ⏭️ {state['skipped_count']} تخطي | ❌ {state['failed']} فشل من إجمالي {total} مجموعة"
         logger.info(summary_msg)
         socketio.emit('log_update', {"message": summary_msg}, to=user_id)
         socketio.emit('send_progress', {
             "status": "completed",
-            "total": len(groups_list),
-            "successful": successful,
-            "skipped": skipped_count,
-            "failed": failed,
+            "total": total,
+            "successful": state['successful'],
+            "skipped": state['skipped_count'],
+            "failed": state['failed'],
             "message": summary_msg
         }, to=user_id)
 
-        # ── حفظ الدفعة في "رسائلي" ──
+        # حفظ الدفعة
         if batch_entries:
             batch_record = {
                 "id": batch_id,
                 "text": message or "",
-                "has_media": bool(images),
+                "has_media": bool(image_files),
                 "sent_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                "sent_count": successful,
+                "sent_count": state['successful'],
                 "entries": batch_entries
             }
             with USERS_LOCK:
@@ -8239,7 +8090,6 @@ def _execute_batch_send(user_id, groups_list, message, image_files, batch_interv
                     ud['sent_batches'].append(batch_record)
                     if len(ud['sent_batches']) > 100:
                         ud['sent_batches'] = ud['sent_batches'][-100:]
-                    # حفظ الدفعات في الإعدادات لضمان الاستمرارية بعد إعادة التشغيل
                     try:
                         settings = load_settings(user_id)
                         settings['sent_batches'] = ud['sent_batches']
@@ -8250,139 +8100,23 @@ def _execute_batch_send(user_id, groups_list, message, image_files, batch_interv
                 _app_db.record_sent_batch(user_id, batch_id, batch_record)
             socketio.emit('batch_saved', batch_record, to=user_id)
 
+        # تنظيف الصور المؤقتة فقط عند اكتمال الإرسال
+        for img_file in image_files:
+            try:
+                if os.path.exists(img_file['path']):
+                    os.unlink(img_file['path'])
+            except Exception:
+                pass
+
     except Exception as e:
-        logger.error(f"Send thread error: {str(e)}")
-    finally:
-        if not pause_event.is_set():
-            with BATCH_STATE_LOCK:
-                if user_id in BATCH_PAUSED_STATES:
-                    del BATCH_PAUSED_STATES[user_id]
-            for img_file in image_files:
-                try:
-                    if os.path.exists(img_file['path']):
-                        os.unlink(img_file['path'])
-                        logger.info(f"Cleaned up temp file: {img_file['name']}")
-                except Exception as e:
-                    logger.error(f"Error cleaning temp file {img_file.get('name', 'unknown')}: {str(e)}")
-
-
-
-@app.route("/api/send_now/stop", methods=["POST"])
-def api_send_now_stop():
-    """إيقاف كامل وفوري لعملية الإرسال الفوري الجارية للمستخدم"""
-    req_data = request.get_json(silent=True) or {}
-    user_id = resolve_request_user_id(req_data) or session.get('user_id') or 'user_1'
-    with BATCH_STATE_LOCK:
-        if user_id in BATCH_CANCEL_EVENTS:
-            BATCH_CANCEL_EVENTS[user_id].set()
-        if user_id in BATCH_PAUSE_EVENTS:
-            BATCH_PAUSE_EVENTS[user_id].set()
-        st = BATCH_PAUSED_STATES.pop(user_id, None)
-        if st:
-            _cleanup_temp_images(st.get('image_files', []))
-    logger.info(f"🛑 تم إرسال إشارة إيقاف الإرسال للمستخدم: {user_id}")
-    socketio.emit('log_update', {"message": "🛑 تم إيقاف الإرسال فوراً بطلب المستخدم."}, to=user_id)
-    socketio.emit('send_progress', {
-        "status": "stopped",
-        "message": "🛑 تم إيقاف الإرسال فوراً بطلب المستخدم."
-    }, to=user_id)
-    return jsonify({"success": True, "message": "تم إيقاف الإرسال بنجاح"})
-@app.route("/api/send_now/pause", methods=["POST"])
-def api_send_now_pause():
-    """إيقاف مؤقت فوري لعملية الإرسال مع حفظ الموقع الحالي للمتابعة"""
-    req_data = request.get_json(silent=True) or {}
-    user_id = resolve_request_user_id(req_data) or session.get('user_id') or 'user_1'
-    with BATCH_STATE_LOCK:
-        if user_id in BATCH_PAUSE_EVENTS:
-            BATCH_PAUSE_EVENTS[user_id].set()
-            logger.info(f"⏸️ تم إرسال إشارة إيقاف مؤقت فوري للمستخدم {user_id}")
-            socketio.emit('log_update', {"message": "⏸️ جارٍ إيقاف الإرسال مؤقتاً فوراً..."}, to=user_id)
-            return jsonify({"success": True, "status": "pausing", "message": "تم إيقاف الإرسال مؤقتاً"})
-        elif user_id in BATCH_PAUSED_STATES:
-            return jsonify({"success": True, "status": "already_paused", "message": "الإرسال متوقف مؤقتاً بالفعل"})
-    return jsonify({"success": False, "message": "لا توجد عملية إرسال نشطة لإيقافها مؤقتاً"})
-
-@app.route("/api/send_now/resume", methods=["POST"])
-def api_send_now_resume():
-    """استئناف عملية الإرسال من حيث توقفت بشكل فعلي وحقيقي"""
-    req_data = request.get_json(silent=True) or {}
-    user_id = resolve_request_user_id(req_data) or session.get('user_id') or 'user_1'
-    with BATCH_STATE_LOCK:
-        state = BATCH_PAUSED_STATES.pop(user_id, None)
-    if not state:
-        return jsonify({"success": False, "message": "❌ لا توجد عملية إرسال متوقفة مؤقتاً للاستئناف"})
-
-    cancel_event = threading.Event()
-    pause_event = threading.Event()
-    with BATCH_STATE_LOCK:
-        BATCH_CANCEL_EVENTS[user_id] = cancel_event
-        BATCH_PAUSE_EVENTS[user_id] = pause_event
-
-    start_idx = state.get("next_index", 1)
-    tot = state.get("total", len(state.get("groups_list", [])))
-    socketio.emit('log_update', {"message": f"▶️ استئناف الإرسال من المجموعة {start_idx}/{tot}..."}, to=user_id)
-    socketio.emit('send_progress', {
-        "status": "resumed",
-        "index": start_idx,
-        "total": tot,
-        "successful": state.get("successful", 0),
-        "message": f"▶️ تم استئناف الإرسال من المجموعة {start_idx}/{tot}"
-    }, to=user_id)
-
-    def _do_resume():
-        _execute_batch_send(
-            user_id=user_id,
-            groups_list=state.get("groups_list", []),
-            message=state.get("message", ""),
-            image_files=state.get("image_files", []),
-            batch_interval=state.get("batch_interval", 7),
-            cancel_event=cancel_event,
-            pause_event=pause_event,
-            start_from_index=start_idx,
-            initial_stats={
-                "successful": state.get("successful", 0),
-                "failed": state.get("failed", 0),
-                "skipped_count": state.get("skipped_count", 0)
-            },
-            saved_batch_id=state.get("batch_id"),
-            saved_batch_entries=state.get("batch_entries", []),
-            pre_scan_action=state.get("pre_scan_action"),
-            force_salam=state.get("force_salam", False),
-            is_batch=state.get("is_batch", True),
-            content_type=state.get("content_type", "رسالة"),
-            images=state.get("images", [])
-        )
-    _OSThread(target=_do_resume, daemon=True).start()
-    return jsonify({
-        "success": True,
-        "message": f"▶️ تم استئناف الإرسال من المجموعة {start_idx} بنجاح",
-        "next_index": start_idx,
-        "total": tot
-    })
-
-@app.route("/api/send_now/status", methods=["GET"])
-def api_send_now_status():
-    user_id = request.args.get('user_id') or session.get('user_id') or 'user_1'
-    with BATCH_STATE_LOCK:
-        is_paused = user_id in BATCH_PAUSED_STATES
-        is_running = user_id in BATCH_CANCEL_EVENTS and not BATCH_CANCEL_EVENTS[user_id].is_set() and not is_paused
-        paused_info = None
-        if is_paused:
-            s = BATCH_PAUSED_STATES[user_id]
-            paused_info = {
-                "next_index": s.get("next_index"),
-                "total": s.get("total"),
-                "successful": s.get("successful", 0),
-                "skipped": s.get("skipped_count", 0),
-                "failed": s.get("failed", 0)
-            }
-    return jsonify({"is_running": is_running, "is_paused": is_paused, "paused_info": paused_info})
-
+        logger.error(f"Send thread error: {e}")
 
 
 @app.route("/api/send_now", methods=["POST"])
 def api_send_now():
-    user_id = resolve_request_user_id(request.json)
+    user_id = resolve_request_user_id(request.json) if 'resolve_request_user_id' in globals() else None
+    if not user_id:
+        user_id = request.json.get('user_id') or session.get('user_id') or 'user_1'
     session['user_id'] = user_id
     session.permanent = True
 
@@ -8399,19 +8133,12 @@ def api_send_now():
                 "message": "❌ يجب تسجيل الدخول أولاً"
             })
 
-    data = request.get_json()
-    if not data:
-        return jsonify({
-            "success": False, 
-            "message": "❌ لا توجد بيانات مرسلة"
-        })
-
+    data = request.get_json() or {}
     message = data.get('message', '').strip()
     groups = data.get('groups', '').strip()
     images = data.get('images', [])
     send_to_all = bool(data.get('send_to_all', False))
-    # الإجراء المختار من نافذة الفحص الاستباقي (skip / sanitize / salam / None)
-    pre_scan_action = data.get('action', None)  # None = استخدم الإعدادات الافتراضية
+    pre_scan_action = data.get('action', None)
     force_salam = bool(data.get('force_salam', False))
     batch_interval = int(data.get('interval') or os.getenv('BATCH_SEND_INTERVAL_SECONDS', 7))
 
@@ -8422,7 +8149,6 @@ def api_send_now():
         })
 
     if send_to_all:
-        # جلب جميع المجموعات من الحساب تلقائياً
         try:
             with USERS_LOCK:
                 client_mgr = USERS.get(user_id, {}).get('client_manager')
@@ -8477,7 +8203,6 @@ def api_send_now():
                 else:
                     base64_data = raw_data
                 image_bytes = base64.b64decode(base64_data)
-
                 mime = img_data.get('type', 'image/jpeg')
                 ext = mime.split('/')[-1].lower()
                 if ext in ('jpeg', 'jpg'):
@@ -8515,43 +8240,46 @@ def api_send_now():
     elif images:
         content_type = f"{len(images)} صورة"
 
-    is_batch = len(groups_list) > 1
     cancel_event = threading.Event()
-    pause_event = threading.Event()
-    with BATCH_STATE_LOCK:
-        BATCH_CANCEL_EVENTS[user_id] = cancel_event
-        BATCH_PAUSE_EVENTS[user_id] = pause_event
-        if user_id in BATCH_PAUSED_STATES:
-            del BATCH_PAUSED_STATES[user_id]
+    BATCH_CANCEL_EVENTS[user_id] = cancel_event
+    batch_id = str(uuid.uuid4())
+
+    # تهيئة حالة الدفعة لدعم الإيقاف الفوري والاستئناف
+    state = {
+        "user_id": user_id,
+        "batch_id": batch_id,
+        "message": message,
+        "images": images,
+        "image_files": image_files,
+        "groups_list": groups_list,
+        "total": len(groups_list),
+        "current_index": 0,
+        "successful": 0,
+        "failed": 0,
+        "skipped_count": 0,
+        "batch_interval": batch_interval,
+        "pre_scan_action": pre_scan_action,
+        "force_salam": force_salam,
+        "batch_entries": [],
+        "status": "sending",
+        "cancel_event": cancel_event
+    }
+    BATCH_SENDER_STATES[user_id] = state
 
     socketio.emit('log_update', {
         "message": f"🚀 بدء الإرسال الفوري: {content_type} إلى {len(groups_list)} مجموعة (فاصل: {batch_interval}ث)"
     }, to=user_id)
 
-    def _run_initial_send():
-        _execute_batch_send(
-            user_id=user_id,
-            groups_list=groups_list,
-            message=message,
-            image_files=image_files,
-            batch_interval=batch_interval,
-            cancel_event=cancel_event,
-            pause_event=pause_event,
-            start_from_index=1,
-            initial_stats={"successful": 0, "failed": 0, "skipped_count": 0},
-            pre_scan_action=pre_scan_action,
-            force_salam=force_salam,
-            is_batch=is_batch,
-            content_type=content_type,
-            images=images
-        )
-    _OSThread(target=_run_initial_send, daemon=True).start()
+    def run_worker():
+        _execute_batch_send(user_id, state, is_resume=False)
+
+    _OSThread(target=run_worker, daemon=True).start()
+
     return jsonify({
         "success": True, 
-        "message": f"🚀 بدأ إرسال {content_type} لـ {len(groups_list)} مجموعة"
+        "message": f"🚀 بدأ إرسال {content_type} لـ {len(groups_list)} مجموعة",
+        "total": len(groups_list)
     })
-
-
 @app.route("/api/scan_groups_protection", methods=["POST"])
 def api_scan_groups_protection():
     user_id = session.get('user_id')
@@ -14909,10 +14637,10 @@ def github_delete_session(user_id):
 #  مدقق صحة الجلسات الدوري
 # ════════════════════════════════════════════════════════════
 def start_session_health_checker():
-    """يفحص صحة جميع الجلسات كل 20 ثانية ويستشعر الجلسات الملغاة تلقائياً"""
+    """يفحص صحة جميع الجلسات كل 120 ثانية"""
     def _checker():
         import time as _t
-        _t.sleep(10)  # فحص سريع بعد 10 ثوانٍ من الإقلاع
+        _t.sleep(120)  # انتظر دقيقتين قبل الفحص الأول لإعطاء العملاء وقتاً كافياً
         while True:
             try:
                 with USERS_LOCK:
@@ -14926,22 +14654,29 @@ def start_session_health_checker():
                             continue
                         # تخطّ الفحص إذا كان الخيط لا يزال يبدأ
                         if client_manager.thread and client_manager.thread.is_alive() and not client_manager.is_ready.is_set():
+                            logger.debug(f"Health check skipped for {uid} — client still starting")
                             continue
+                        # تخطّ الفحص إذا لم يكن الـ loop يعمل بعد
                         if not client_manager.loop or not client_manager.loop.is_running():
                             continue
                         is_valid = client_manager.check_session_valid_sync()
                         if not is_valid:
-                            logger.warning(f"🚨 [AUTO-LOGOUT] استشعار إلغاء/إنهاء جلسة الحساب {uid} من تطبيق تيليجرام الرسمي!")
-                            notify_and_handle_session_revocation(uid, "انتهت صلاحية الجلسة أو تم إنهاؤها من تطبيق تيليجرام الرسمي")
+                            logger.warning(f"Session health check failed for {uid} — revoking")
+                            socketio.emit('session_revoked', {
+                                "user_id": uid,
+                                "reason": "انتهت صلاحية الجلسة أو تم إلغاؤها"
+                            }, to=uid)
+                            github_delete_session(uid)
                     except Exception as inner_e:
                         logger.debug(f"Health check error for {uid}: {inner_e}")
             except Exception as e:
                 logger.debug(f"Session health checker error: {e}")
-            _t.sleep(20)
+            _t.sleep(120)
 
+    # استخدام OS thread حقيقي للـ health checker
     t = _OSThread(target=_checker, daemon=True, name='SessionHealthChecker')
     t.start()
-    logger.info("✅ مدقق صحة الجلسات الدوري واستشعار الإلغاء مُفعّل (كل 20 ثانية)")
+    logger.info("✅ مدقق صحة الجلسات الدوري مُفعّل (كل 120 ثانية)")
 
 start_session_health_checker()
 

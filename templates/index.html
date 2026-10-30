@@ -1522,16 +1522,14 @@
                                     وضع الإرسال عند المجموعات المحمية
                                 </label>
                                 <select class="form-select" id="sanitizeMode">
-                                    <option value="auto"   {{ 'selected' if (settings.sanitize_mode or 'auto') == 'auto'   else '' }}>⚡ ذكي موحّد (Auto) — تلقائي: حماية، تعديل، تنقية روابط ✅ موصى به</option>
-                                    <option value="salam"  {{ 'selected' if settings.sanitize_mode == 'salam'  else '' }}>🤖 ذكي (salam) — أرسل "السلام عليكم" ثم عدّل عند النشاط</option>
+                                    <option value="salam"  {{ 'selected' if (settings.sanitize_mode or 'salam') == 'salam'  else '' }}>🤖 ذكي (salam) — أرسل "السلام عليكم" ثم عدّل عند النشاط ✅ افتراضي</option>
                                     <option value="skip"   {{ 'selected' if settings.sanitize_mode == 'skip'   else '' }}>⏭️ تخطي — لا ترسل للمجموعات المحمية</option>
                                     <option value="smart"  {{ 'selected' if settings.sanitize_mode == 'smart'  else '' }}>🧠 ذكية — ينقّي الرسالة (يحذف روابط/أرقام)</option>
                                     <option value="always" {{ 'selected' if settings.sanitize_mode == 'always' else '' }}>🛡️ تنقية — أرسل مع حذف الروابط دائماً</option>
                                     <option value="off"    {{ 'selected' if settings.sanitize_mode == 'off'    else '' }}>🚫 معطّل — أرسل كما هي (خطر حظر)</option>
                                 </select>
                                 <div class="form-text">
-                                    <strong>⚡ ذكي موحّد (Auto) [موصى به]:</strong> قرار ذكي تلقائي يجمع كل الخواص معاً: إن وُجدت بوتات حماية يستخدم سلام، وإن وُجدت قيود كلمات أو روابط أو هواتف يتم تكييفها وتنقيتها وإرسالها مباشرة، وإن حُظرت الوسائط تُلغى الصور تلقائياً.<br>
-                                    <strong>🤖 ذكي (salam):</strong> يرسل "السلام عليكم" أولاً، ينتظر مدة interval، فإن وصلت ≥3 رسائل عدّل إلى رسالتك، وإلا حذف وأعاد الدورة.<br>
+                                    <strong>🤖 ذكي (salam) [افتراضي]:</strong> يرسل "السلام عليكم" أولاً، ينتظر مدة interval، فإن وصلت ≥3 رسائل عدّل إلى رسالتك، وإلا حذف وأعاد الدورة. يُوقف تلقائياً عند تغيير الوضع. <br>
                                     <strong>⏭️ تخطي:</strong> يتجاهل المجموعات المحمية تماماً — الأأمن للحساب. <br>
                                     <strong>🧠 ذكية:</strong> يحذف الروابط والأرقام تلقائياً قبل الإرسال للمجموعات المحمية. <br>
                                     <strong>🛡️ تنقية:</strong> يحذف الروابط من كل رسالة لجميع المجموعات. <br>
@@ -1635,9 +1633,14 @@
                                         <i class="fas fa-paper-plane me-2"></i>
                                         إرسال الآن
                                     </button>
-                                    <button type="button" class="btn btn-warning w-100 fw-bold mt-2" id="sendNowPauseResumeBtn" style="display:none;" data-state="running">
-                                        <i class="fas fa-pause me-2"></i>
-                                        إيقاف الإرسال
+                                </div>
+                            </div>
+                            <!-- شريط إيقاف مؤقت / استئناف الإرسال الفوري -->
+                            <div class="row mb-2" id="sendPauseResumeRow" style="display: none;">
+                                <div class="col-12">
+                                    <button type="button" class="btn btn-warning w-100 fw-bold shadow-sm" id="btnPauseResumeSend">
+                                        <i class="fas fa-pause-circle me-2"></i>
+                                        <span id="btnPauseResumeSendText">إيقاف مؤقت للإرسال</span>
                                     </button>
                                 </div>
                             </div>
@@ -1648,8 +1651,8 @@
                                         <i class="fas fa-circle-notch fa-spin me-2"></i>جارٍ الإرسال الفوري...
                                     </span>
                                     <div class="d-flex align-items-center gap-2">
-                                        <button type="button" class="btn btn-sm btn-warning text-dark fw-bold" id="stopSendNowBtn" style="display:none;font-size:0.75rem;padding:3px 10px;border-radius:6px;" data-state="running" title="إيقاف مؤقت للإرسال">
-                                            <i class="fas fa-pause me-1"></i>إيقاف الإرسال
+                                        <button type="button" class="btn btn-sm btn-warning" id="stopSendNowBtn" style="display:none;font-size:0.8rem;padding:3px 10px;border-radius:6px;">
+                                            <i class="fas fa-pause me-1"></i><span id="stopSendNowBtnText">إيقاف مؤقت</span>
                                         </button>
                                         <button type="button" class="btn btn-sm btn-outline-danger" id="cancelSendNowBtn" style="display:none;font-size:0.75rem;padding:3px 8px;border-radius:6px;" title="إلغاء الإرسال نهائياً">
                                             <i class="fas fa-times me-1"></i>إلغاء
@@ -4489,35 +4492,19 @@
         });
         // معالج إلغاء الجلسة
         s.on('session_revoked', (data) => {
-          const reason = (data && (data.message || data.reason)) ? (data.message || data.reason) : '⚠️ تم إنهاء أو إزالة الجلسة من تطبيق تيليجرام الرسمي! تم تسجيل الخروج تلقائياً.';
+          const reason = (data && data.reason) ? data.reason : 'تم إلغاء الجلسة أو انتهت صلاحيتها';
           const banner = document.createElement('div');
-          banner.className = 'alert alert-danger alert-dismissible fade show position-fixed w-100 shadow-lg';
-          banner.style.cssText = 'top:0;left:0;right:0;z-index:99999;border-radius:0;margin:0;font-size:1rem;background:#991b1b;color:#ffffff;border:none;';
+          banner.className = 'alert alert-danger alert-dismissible fade show position-fixed w-100';
+          banner.style.cssText = 'top:0;left:0;right:0;z-index:99999;border-radius:0;margin:0;';
           banner.innerHTML = `
-            <div class="d-flex align-items-center justify-content-between p-2">
-              <div>
-                <strong><i class="fas fa-exclamation-triangle me-2"></i>تنبيه أمان: تم إزالة أو الخروج من الجلسة!</strong>
-                <br><span>${escapeHtml(reason)}</span>
-              </div>
-              <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert"></button>
-            </div>
+            <strong><i class="fas fa-exclamation-triangle me-2"></i>تنبيه: الجلسة ملغاة!</strong>
+            <br><span>${escapeHtml(reason)}</span><br>
+            <small>يرجى إعادة تسجيل الدخول من الإعدادات.</small>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
           `;
           document.body.prepend(banner);
-          if (window.speechSynthesis) {
-            try {
-              window.speechSynthesis.cancel();
-              const utt = new SpeechSynthesisUtterance('تنبيه: تم إنهاء الجلسة من تطبيق تيليجرام الرسمي، تم تسجيل الخروج تلقائياً');
-              utt.lang = 'ar-SA';
-              window.speechSynthesis.speak(utt);
-            } catch(e) {}
-          }
-          if (typeof showLoggedOut === 'function') {
-            showLoggedOut();
-          }
           const connStatus = document.getElementById('connectionStatus');
-          if (connStatus) { connStatus.textContent = '🔴 تم تسجيل الخروج'; connStatus.className = 'badge bg-danger'; }
-          const connBadge = document.getElementById('connectionStatusHeader');
-          if (connBadge) { connBadge.className = 'badge bg-secondary'; connBadge.textContent = 'غير متصل'; }
+          if (connStatus) { connStatus.textContent = '🔴 جلسة ملغاة'; connStatus.className = 'badge bg-danger'; }
         });
         // معالج تحذير المجموعات المحمية
         s.on('group_protection_warning', (data) => {
@@ -6514,6 +6501,12 @@
             window._loginSocketBound = true;
             window.socket.on('login_result', handleLoginResult);
             window.socket.on('login_status', handleLoginStatus);
+            window.socket.on('session_revoked', (data) => {
+                showLoggedOut();
+                const msg = (data && data.message) ? data.message : '⚠️ تم رصد إنهاء أو إزالة الجلسة من تطبيق تليجرام الآخر الرسمي! تم تسجيل الخروج تلقائياً.';
+                window.showAlert('danger', msg, 15000);
+                showSessionRevokedModal(msg);
+            });
             window.socket.on('account_updated', (data) => {
                 if (data) updateAccountUI(data);
             });
@@ -6613,42 +6606,66 @@
             const loginForm = byId('loginForm');
             const verifyForm = byId('verifyForm');
             const passwordForm = byId('passwordForm');
+
+        window.showSessionRevokedModal = function(msg) {
+            try {
+                const desc = document.getElementById('sessionRevokedModalDesc');
+                if (desc && msg) desc.textContent = msg;
+                const mEl = document.getElementById('sessionRevokedModal');
+                if (mEl && window.bootstrap && window.bootstrap.Modal) {
+                    const m = window.bootstrap.Modal.getOrCreateInstance(mEl);
+                    m.show();
+                }
+            } catch(e) { console.warn('Error opening session revoked modal:', e); }
+        };
+
+        // ربط تسجيل الخروج الفعلي
+        function setupLogoutButton() {
+            const logoutButton = byId('logoutButton');
+            if (!logoutButton || logoutButton._bound) return;
+            logoutButton._bound = true;
+            logoutButton.addEventListener('click', async function(e) {
+                e.preventDefault();
+                if (!confirm('هل أنت متأكد من رغبتك في تسجيل الخروج وإنهاء جلسة التليجرام الحالية؟')) {
+                    return;
+                }
+                logoutButton.disabled = true;
+                const origHtml = logoutButton.innerHTML;
+                logoutButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>جارٍ الخروج...';
+                try {
+                    const resp = await fetch('/api/user_logout', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'same-origin',
+                        body: JSON.stringify({ user_id: '{{ current_user.id }}' })
+                    });
+                    const data = await resp.json();
+                    if (data && data.success) {
+                        showLoggedOut();
+                        window.showAlert('success', data.message || '✅ تم تسجيل الخروج وإنهاء جلسة التليجرام بنجاح', 5000);
+                        const phoneInput = byId('phone');
+                        if (phoneInput) phoneInput.value = '';
+                        const pwInput = byId('password');
+                        if (pwInput) pwInput.value = '';
+                        if (window.refreshAccountsSidebar) window.refreshAccountsSidebar(true);
+                    } else {
+                        window.showAlert('danger', '❌ ' + ((data && data.message) || 'تعذر تسجيل الخروج'));
+                    }
+                } catch (err) {
+                    window.showAlert('danger', '❌ خطأ في الاتصال بالخادم: ' + err.message);
+                } finally {
+                    logoutButton.disabled = false;
+                    logoutButton.innerHTML = origHtml;
+                }
+            });
+        }
+
+            setupLogoutButton();
             if (loginForm) loginForm.addEventListener('submit', submitLogin);
             if (verifyForm) verifyForm.addEventListener('submit', submitCode);
             if (passwordForm) passwordForm.addEventListener('submit', submitPassword);
             byId('resendCodeBtn')?.addEventListener('click', () => resendCode(false));
             byId('resendSmsBtn')?.addEventListener('click', () => resendCode(true));
-
-            // ربط حدث زر تسجيل الخروج الفعلي
-            const logoutBtn = byId('logoutButton');
-            if (logoutBtn) {
-                logoutBtn.addEventListener('click', async () => {
-                    if (!confirm('هل أنت متأكد من رغبتك في تسجيل الخروج من هذا الحساب وإنهاء الجلسة؟')) {
-                        return;
-                    }
-                    logoutBtn.disabled = true;
-                    logoutBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>جاري تسجيل الخروج...';
-                    try {
-                        const activeUser = window.currentActiveUserId || '{{ current_user.id }}' || localStorage.getItem('last_active_user_id') || 'user_1';
-                        const res = await postLogin('/api/user_logout', { user_id: activeUser });
-                        if (res && res.success) {
-                            showLoginMessage('✅ ' + (res.message || 'تم تسجيل الخروج بنجاح.'), 'success');
-                            showLoggedOut();
-                            setTimeout(() => {
-                                window.location.reload();
-                            }, 800);
-                        } else {
-                            showLoginMessage('❌ ' + ((res && res.message) || 'تعذر تسجيل الخروج.'), 'danger');
-                            logoutBtn.disabled = false;
-                            logoutBtn.innerHTML = '<i class="fas fa-sign-out-alt me-2"></i>تسجيل الخروج';
-                        }
-                    } catch (err) {
-                        showLoginMessage('❌ خطأ أثناء تسجيل الخروج: ' + err.message, 'danger');
-                        logoutBtn.disabled = false;
-                        logoutBtn.innerHTML = '<i class="fas fa-sign-out-alt me-2"></i>تسجيل الخروج';
-                    }
-                });
-            }
             byId('cancelVerifyBtn')?.addEventListener('click', () => {
                 showLoggedOut();
                 showLoginMessage('يمكنك تعديل رقم الهاتف ثم الضغط على تسجيل الدخول.', 'info');
@@ -12070,7 +12087,7 @@ document.addEventListener('DOMContentLoaded', function() {
         keyword_auto_reply_in_group: byId('keywordAutoReplyInGroup') ? byId('keywordAutoReplyInGroup').checked : false,
         keyword_auto_reply_in_dm: byId('keywordAutoReplyInDm') ? byId('keywordAutoReplyInDm').checked : true,
         alert_target_user: (byId('alertTargetUser')?.value || 'me').trim(),
-        sanitize_mode: byId('sanitizeMode')?.value || 'auto',
+        sanitize_mode: byId('sanitizeMode')?.value || 'salam',
         send_type: byId('sendType')?.value || 'manual',
         interval_seconds: Math.max(60, Math.round(num('intervalSeconds', 25) * 60)),
         schedule_duration_hours: num('scheduleDuration', 2.0) || 2.0,
@@ -12142,7 +12159,170 @@ document.addEventListener('DOMContentLoaded', function() {
             if (result.success) setButtonState(false);
         } catch (error) { window.showAlert('danger', '❌ تعذر إيقاف الإرسال: ' + error.message); }
     }
+    window.batchSenderState = 'idle'; // 'idle' | 'sending' | 'paused'
+    window.batchRemaining = 0;
+
+    function applyBatchSendingUI() {
+        window.batchSenderState = 'sending';
+        const sendBtn = byId('sendNowBtn');
+        const pauseRow = byId('sendPauseResumeRow');
+        const pauseBtn = byId('btnPauseResumeSend');
+        const stopBtn = byId('stopSendNowBtn');
+        const cancelBtn = byId('cancelSendNowBtn');
+        const bar = byId('sendLiveProgressBar');
+        const title = byId('sendLiveProgressTitle');
+        const badge = byId('sendLiveProgressBadge');
+
+        if (sendBtn) {
+            sendBtn.disabled = true;
+            sendBtn.className = 'btn btn-primary w-100';
+            sendBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>جارٍ الإرسال...';
+        }
+        if (pauseRow) pauseRow.style.display = 'block';
+        if (pauseBtn) {
+            pauseBtn.disabled = false;
+            pauseBtn.className = 'btn btn-warning w-100 fw-bold shadow-sm';
+            pauseBtn.innerHTML = '<i class="fas fa-pause-circle me-2"></i>إيقاف مؤقت للإرسال';
+        }
+        if (stopBtn) {
+            stopBtn.disabled = false;
+            stopBtn.style.display = 'inline-block';
+            stopBtn.className = 'btn btn-sm btn-warning';
+            stopBtn.innerHTML = '<i class="fas fa-pause me-1"></i>إيقاف مؤقت';
+        }
+        if (cancelBtn) cancelBtn.style.display = 'none';
+        if (bar) bar.className = 'progress-bar progress-bar-striped progress-bar-animated bg-info';
+        if (title) title.innerHTML = '<i class="fas fa-circle-notch fa-spin me-2"></i>جارٍ الإرسال الفوري...';
+        if (badge) badge.className = 'badge bg-primary';
+    }
+
+    function applyBatchPausedUI(rem, idx, tot) {
+        window.batchSenderState = 'paused';
+        window.batchRemaining = rem;
+        const sendBtn = byId('sendNowBtn');
+        const pauseRow = byId('sendPauseResumeRow');
+        const pauseBtn = byId('btnPauseResumeSend');
+        const stopBtn = byId('stopSendNowBtn');
+        const cancelBtn = byId('cancelSendNowBtn');
+        const bar = byId('sendLiveProgressBar');
+        const title = byId('sendLiveProgressTitle');
+        const badge = byId('sendLiveProgressBadge');
+        const curStatus = byId('sendLiveCurrentStatus');
+
+        const remLabel = rem > 0 ? ` (متبقي ${rem} مجموعة)` : '';
+
+        if (sendBtn) {
+            sendBtn.disabled = false;
+            sendBtn.className = 'btn btn-info w-100 fw-bold';
+            sendBtn.innerHTML = `<i class="fas fa-play-circle me-2"></i>استئناف الإرسال${remLabel}`;
+        }
+        if (pauseRow) pauseRow.style.display = 'block';
+        if (pauseBtn) {
+            pauseBtn.disabled = false;
+            pauseBtn.className = 'btn btn-info w-100 fw-bold shadow-sm';
+            pauseBtn.innerHTML = `<i class="fas fa-play-circle me-2"></i>استئناف الإرسال${remLabel}`;
+        }
+        if (stopBtn) {
+            stopBtn.disabled = false;
+            stopBtn.style.display = 'inline-block';
+            stopBtn.className = 'btn btn-sm btn-info';
+            stopBtn.innerHTML = '<i class="fas fa-play me-1"></i>استئناف';
+        }
+        if (cancelBtn) cancelBtn.style.display = 'inline-block';
+        if (bar) bar.className = 'progress-bar bg-warning';
+        if (title) title.innerHTML = '<i class="fas fa-pause-circle text-warning me-2"></i>تم إيقاف الإرسال مؤقتاً';
+        if (badge && tot > 0) {
+            badge.className = 'badge bg-warning text-dark';
+            badge.textContent = `موقوف (${idx}/${tot})`;
+        }
+        if (curStatus) {
+            curStatus.innerHTML = `<span class="text-warning fw-bold">⏸️ الإرسال متوقف مؤقتاً عند المجموعة ${idx} من ${tot}. اضغط "استئناف" للمتابعة.</span>`;
+        }
+    }
+
+    function applyBatchCompletedUI(msg) {
+        window.batchSenderState = 'idle';
+        window.batchRemaining = 0;
+        const sendBtn = byId('sendNowBtn');
+        const pauseRow = byId('sendPauseResumeRow');
+        const stopBtn = byId('stopSendNowBtn');
+        const cancelBtn = byId('cancelSendNowBtn');
+
+        if (sendBtn) {
+            sendBtn.disabled = false;
+            sendBtn.className = 'btn btn-primary w-100';
+            sendBtn.innerHTML = '<i class="fas fa-paper-plane me-2"></i>إرسال الآن';
+        }
+        if (pauseRow) pauseRow.style.display = 'none';
+        if (stopBtn) stopBtn.style.display = 'none';
+        if (cancelBtn) cancelBtn.style.display = 'none';
+    }
+
+    async function togglePauseResumeSend() {
+        if (window.batchSenderState === 'sending') {
+            // إيقاف فوري
+            const pauseBtn = byId('btnPauseResumeSend');
+            const stopBtn = byId('stopSendNowBtn');
+            if (pauseBtn) {
+                pauseBtn.disabled = true;
+                pauseBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>جاري الإيقاف فوراً...';
+            }
+            if (stopBtn) {
+                stopBtn.disabled = true;
+                stopBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>جاري الإيقاف...';
+            }
+            try {
+                const res = await requestJson('/api/send_now/pause', {});
+                window.showAlert('warning', res.message || '⏸️ تم إيقاف الإرسال مؤقتاً فوراً', 4000);
+                applyBatchPausedUI(res.remaining || 0, res.current_index || 0, res.total || 0);
+            } catch (err) {
+                window.showAlert('danger', 'تعذر إيقاف الإرسال: ' + err.message);
+                if (pauseBtn) pauseBtn.disabled = false;
+                if (stopBtn) stopBtn.disabled = false;
+            }
+        } else if (window.batchSenderState === 'paused') {
+            // استئناف الإرسال
+            const pauseBtn = byId('btnPauseResumeSend');
+            const stopBtn = byId('stopSendNowBtn');
+            const sendBtn = byId('sendNowBtn');
+            if (pauseBtn) {
+                pauseBtn.disabled = true;
+                pauseBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>جاري الاستئناف...';
+            }
+            if (stopBtn) {
+                stopBtn.disabled = true;
+                stopBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>جاري الاستئناف...';
+            }
+            if (sendBtn) {
+                sendBtn.disabled = true;
+                sendBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>جارٍ الإرسال...';
+            }
+            try {
+                const res = await requestJson('/api/send_now/resume', {});
+                if (res.success) {
+                    window.showAlert('info', res.message || '▶️ بدأ استئناف الإرسال بنجاح', 4000);
+                    applyBatchSendingUI();
+                } else {
+                    window.showAlert('danger', '❌ ' + (res.message || 'تعذر الاستئناف'));
+                    if (pauseBtn) pauseBtn.disabled = false;
+                    if (stopBtn) stopBtn.disabled = false;
+                    if (sendBtn) sendBtn.disabled = false;
+                }
+            } catch (err) {
+                window.showAlert('danger', 'تعذر استئناف الإرسال: ' + err.message);
+                if (pauseBtn) pauseBtn.disabled = false;
+                if (stopBtn) stopBtn.disabled = false;
+                if (sendBtn) sendBtn.disabled = false;
+            }
+        }
+    }
+
     async function handleSendNow() {
+        if (window.batchSenderState === 'paused') {
+            await togglePauseResumeSend();
+            return;
+        }
+
         const btn = byId('sendNowBtn');
         const origHtml = btn ? btn.innerHTML : '';
         const payload = settingsPayload();
@@ -12157,44 +12337,17 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        if (btn) {
-            btn.disabled = true;
-            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>جارٍ الإرسال...';
-        }
+        applyBatchSendingUI();
 
         // إظهار كارت المتابعة الحية
         const progressCard = byId('sendLiveProgressCard');
-        const progressTitle = byId('sendLiveProgressTitle');
         const progressBadge = byId('sendLiveProgressBadge');
         const progressBar = byId('sendLiveProgressBar');
         const currentStatus = byId('sendLiveCurrentStatus');
         const progressLog = byId('sendLiveProgressLog');
 
         if (progressCard) progressCard.style.display = 'block';
-        if (progressTitle) progressTitle.innerHTML = '<i class="fas fa-circle-notch fa-spin me-2"></i>جارٍ الإرسال الفوري...';
         if (progressBadge) progressBadge.textContent = '0%';
-        const stopBtn = byId('stopSendNowBtn');
-        const cancelBtn = byId('cancelSendNowBtn');
-        const pauseResumeBtn = byId('sendNowPauseResumeBtn');
-        if (stopBtn) {
-            stopBtn.style.display = 'inline-block';
-            stopBtn.disabled = false;
-            stopBtn.innerHTML = '<i class="fas fa-pause me-1"></i>إيقاف الإرسال';
-            stopBtn.className = 'btn btn-sm btn-warning text-dark fw-bold';
-            stopBtn.dataset.state = 'running';
-        }
-        if (cancelBtn) {
-            cancelBtn.style.display = 'inline-block';
-            cancelBtn.disabled = false;
-        }
-        if (pauseResumeBtn) {
-            pauseResumeBtn.style.display = 'block';
-            pauseResumeBtn.disabled = false;
-            pauseResumeBtn.innerHTML = '<i class="fas fa-pause me-2"></i>إيقاف الإرسال';
-            pauseResumeBtn.className = 'btn btn-warning w-100 fw-bold mt-2';
-            pauseResumeBtn.dataset.state = 'running';
-        }
-        if (btn) btn.style.display = 'none';
         if (progressBar) {
             progressBar.style.width = '0%';
             progressBar.className = 'progress-bar progress-bar-striped progress-bar-animated bg-info';
@@ -12214,20 +12367,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
             if (!result.success) {
                 window.showAlert('danger', '❌ ' + (result.message || 'تعذر الإرسال'));
-                if (btn) {
-                    btn.disabled = false;
-                    btn.innerHTML = origHtml || '<i class="fas fa-paper-plane me-2"></i>إرسال الآن';
-                }
+                applyBatchCompletedUI();
                 if (progressCard) progressCard.style.display = 'none';
             } else {
                 if (currentStatus) currentStatus.innerHTML = `<span class="text-info">${result.message}</span>`;
             }
         } catch (error) { 
             window.showAlert('danger', '❌ تعذر الإرسال الآن: ' + error.message);
-            if (btn) {
-                btn.disabled = false;
-                btn.innerHTML = origHtml || '<i class="fas fa-paper-plane me-2"></i>إرسال الآن';
-            }
+            applyBatchCompletedUI();
         }
     }
     async function handleScanGroupsAI() {
@@ -12331,79 +12478,25 @@ document.addEventListener('DOMContentLoaded', function() {
 
             if (card) card.style.display = 'block';
 
-            const cancelBtn = byId('cancelSendNowBtn');
-            const pauseResumeBtn = byId('sendNowPauseResumeBtn');
-
             if (data.status === 'paused') {
-                if (badge) badge.textContent = `متوقف مؤقتاً (${data.index || 0}/${data.total || 0})`;
-                if (bar) bar.className = 'progress-bar bg-warning';
-                if (title) title.innerHTML = '<i class="fas fa-pause-circle text-warning me-2"></i>تم إيقاف الإرسال مؤقتاً';
-                if (curStatus) curStatus.innerHTML = `<span class="text-warning fw-bold">${data.message || '⏸️ تم إيقاف الإرسال مؤقتاً'}</span>`;
-                if (stopBtn) {
-                    stopBtn.style.display = 'inline-block';
-                    stopBtn.disabled = false;
-                    stopBtn.className = 'btn btn-sm btn-success fw-bold';
-                    stopBtn.innerHTML = '<i class="fas fa-play me-1"></i>استئناف الإرسال';
-                    stopBtn.dataset.state = 'paused';
-                }
-                if (pauseResumeBtn) {
-                    pauseResumeBtn.style.display = 'block';
-                    pauseResumeBtn.disabled = false;
-                    pauseResumeBtn.className = 'btn btn-success w-100 fw-bold mt-2';
-                    pauseResumeBtn.innerHTML = '<i class="fas fa-play me-2"></i>استئناف الإرسال';
-                    pauseResumeBtn.dataset.state = 'paused';
-                }
-                if (sendBtn) sendBtn.style.display = 'none';
-                window.showAlert('warning', data.message || '⏸️ تم إيقاف الإرسال مؤقتاً، يمكنك الضغط على استئناف في أي وقت.', 6000);
+                applyBatchPausedUI(data.remaining || (data.total - data.index), data.index || 0, data.total || 0);
                 return;
             }
-
             if (data.status === 'resumed') {
-                if (badge) badge.textContent = `جارٍ الإرسال... (${data.index || 0}/${data.total || 0})`;
-                if (bar) bar.className = 'progress-bar progress-bar-striped progress-bar-animated bg-info';
-                if (title) title.innerHTML = '<i class="fas fa-circle-notch fa-spin me-2 text-info"></i>جارٍ الإرسال الفوري...';
-                if (curStatus) curStatus.innerHTML = `<span class="text-info fw-bold">${data.message || '▶️ جاري استئناف الإرسال...'}</span>`;
-                if (stopBtn) {
-                    stopBtn.style.display = 'inline-block';
-                    stopBtn.disabled = false;
-                    stopBtn.className = 'btn btn-sm btn-warning text-dark fw-bold';
-                    stopBtn.innerHTML = '<i class="fas fa-pause me-1"></i>إيقاف الإرسال';
-                    stopBtn.dataset.state = 'running';
-                }
-                if (pauseResumeBtn) {
-                    pauseResumeBtn.style.display = 'block';
-                    pauseResumeBtn.disabled = false;
-                    pauseResumeBtn.className = 'btn btn-warning w-100 fw-bold mt-2';
-                    pauseResumeBtn.innerHTML = '<i class="fas fa-pause me-2"></i>إيقاف الإرسال';
-                    pauseResumeBtn.dataset.state = 'running';
-                }
-                if (sendBtn) sendBtn.style.display = 'none';
-                window.showAlert('info', data.message || '▶️ تم استئناف الإرسال من حيث توقف بنجاح.', 4000);
+                applyBatchSendingUI();
                 return;
             }
-
-            if (data.status === 'completed' || data.status === 'stopped') {
-                if (badge) badge.textContent = data.status === 'completed' ? '100%' : 'تم الإيقاف';
+            if (data.status === 'completed') {
+                if (badge) badge.textContent = '100%';
                 if (bar) {
-                    bar.style.width = data.status === 'completed' ? '100%' : bar.style.width;
-                    bar.className = data.status === 'completed' ? 'progress-bar bg-success' : 'progress-bar bg-secondary';
+                    bar.style.width = '100%';
+                    bar.className = 'progress-bar bg-success';
                 }
-                if (title) {
-                    title.innerHTML = data.status === 'completed' 
-                        ? '<i class="fas fa-check-double text-success me-2"></i>اكتملت دفعة الإرسال!' 
-                        : '<i class="fas fa-stop text-danger me-2"></i>تم إيقاف الإرسال';
-                }
-                const summaryHtml = `<strong class="${data.status === 'completed' ? 'text-success' : 'text-danger'}">${data.message || 'انتهت العملية'}</strong>`;
+                if (title) title.innerHTML = '<i class="fas fa-check-double text-success me-2"></i>اكتملت دفعة الإرسال!';
+                const summaryHtml = `<strong class="text-success">${data.message || 'اكتملت جميع العمليات'}</strong>`;
                 if (curStatus) curStatus.innerHTML = summaryHtml;
-                window.showAlert(data.status === 'completed' ? 'success' : 'warning', data.message || 'انتهت العملية', 8000);
-                if (sendBtn) {
-                    sendBtn.style.display = '';
-                    sendBtn.disabled = false;
-                    sendBtn.innerHTML = '<i class="fas fa-paper-plane me-2"></i>إرسال الآن';
-                }
-                if (stopBtn) stopBtn.style.display = 'none';
-                if (cancelBtn) cancelBtn.style.display = 'none';
-                if (pauseResumeBtn) pauseResumeBtn.style.display = 'none';
+                window.showAlert('success', `🎉 ${data.message || 'انتهى الإرسال بنجاح'}`, 8000);
+                applyBatchCompletedUI(data.message);
                 return;
             }
 
@@ -12468,65 +12561,16 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
 
-        // دالة التحكم في الإيقاف المؤقت والاستئناف للإرسال الفوري
-        async function handleTogglePauseResumeSend() {
-            const stopBtn = byId('stopSendNowBtn');
-            const pauseResumeBtn = byId('sendNowPauseResumeBtn');
-            const currentState = stopBtn ? stopBtn.dataset.state : (pauseResumeBtn ? pauseResumeBtn.dataset.state : 'running');
-
-            if (currentState === 'paused') {
-                // استئناف الإرسال
-                if (stopBtn) { stopBtn.disabled = true; stopBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>جاري الاستئناف...'; }
-                if (pauseResumeBtn) { pauseResumeBtn.disabled = true; pauseResumeBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>جاري الاستئناف...'; }
-                try {
-                    const res = await requestJson('/api/send_now/resume', {});
-                    if (res && res.success) {
-                        window.showAlert('success', res.message || '▶️ جاري استئناف الإرسال...');
-                    } else {
-                        window.showAlert('danger', (res && res.message) || 'تعذر استئناف الإرسال');
-                        if (stopBtn) { stopBtn.disabled = false; stopBtn.innerHTML = '<i class="fas fa-play me-1"></i>استئناف الإرسال'; }
-                        if (pauseResumeBtn) { pauseResumeBtn.disabled = false; pauseResumeBtn.innerHTML = '<i class="fas fa-play me-2"></i>استئناف الإرسال'; }
-                    }
-                } catch(e) {
-                    window.showAlert('danger', 'خطأ أثناء الاستئناف: ' + e.message);
-                    if (stopBtn) { stopBtn.disabled = false; stopBtn.innerHTML = '<i class="fas fa-play me-1"></i>استئناف الإرسال'; }
-                    if (pauseResumeBtn) { pauseResumeBtn.disabled = false; pauseResumeBtn.innerHTML = '<i class="fas fa-play me-2"></i>استئناف الإرسال'; }
-                }
-            } else {
-                // إيقاف مؤقت فوري
-                if (stopBtn) { stopBtn.disabled = true; stopBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>جاري الإيقاف...'; }
-                if (pauseResumeBtn) { pauseResumeBtn.disabled = true; pauseResumeBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>جاري الإيقاف...'; }
-                try {
-                    const res = await requestJson('/api/send_now/pause', {});
-                    if (res && res.success) {
-                        window.showAlert('warning', res.message || '⏸️ تم إيقاف الإرسال مؤقتاً');
-                    } else {
-                        window.showAlert('danger', (res && res.message) || 'تعذر إيقاف الإرسال');
-                        if (stopBtn) { stopBtn.disabled = false; stopBtn.innerHTML = '<i class="fas fa-pause me-1"></i>إيقاف الإرسال'; }
-                        if (pauseResumeBtn) { pauseResumeBtn.disabled = false; pauseResumeBtn.innerHTML = '<i class="fas fa-pause me-2"></i>إيقاف الإرسال'; }
-                    }
-                } catch(e) {
-                    window.showAlert('danger', 'خطأ أثناء الإيقاف المؤقت: ' + e.message);
-                    if (stopBtn) { stopBtn.disabled = false; stopBtn.innerHTML = '<i class="fas fa-pause me-1"></i>إيقاف الإرسال'; }
-                    if (pauseResumeBtn) { pauseResumeBtn.disabled = false; pauseResumeBtn.innerHTML = '<i class="fas fa-pause me-2"></i>إيقاف الإرسال'; }
-                }
-            }
-        }
-
-        byId('stopSendNowBtn')?.addEventListener('click', handleTogglePauseResumeSend);
-        byId('sendNowPauseResumeBtn')?.addEventListener('click', handleTogglePauseResumeSend);
-
-        // ربط حدث زر الإلغاء الكامل للإرسال
+        // ربط أحداث زر إيقاف / استئناف الإرسال
+        byId('btnPauseResumeSend')?.addEventListener('click', togglePauseResumeSend);
+        byId('stopSendNowBtn')?.addEventListener('click', togglePauseResumeSend);
         byId('cancelSendNowBtn')?.addEventListener('click', async () => {
-            const cancelBtn = byId('cancelSendNowBtn');
-            if (cancelBtn) { cancelBtn.disabled = true; cancelBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>'; }
+            if (!confirm('هل تريد إلغاء دفعة الإرسال الحالية نهائياً؟')) return;
             try {
-                const res = await requestJson('/api/send_now/stop', {});
-                window.showAlert('warning', res.message || 'تم إيقاف وإلغاء الإرسال');
-            } catch (e) {
-                window.showAlert('danger', 'تعذر إيقاف الإرسال: ' + e.message);
-                if (cancelBtn) cancelBtn.disabled = false;
-            }
+                await requestJson('/api/send_now/pause', {});
+                applyBatchCompletedUI('تم إلغاء الإرسال نهائياً');
+                window.showAlert('info', 'تم إلغاء الإرسال نهائياً');
+            } catch(e) {}
         });
     }
     document.addEventListener('DOMContentLoaded', () => {
@@ -13169,5 +13213,35 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 <!-- محرك التحكم الصوتي الذاتي الشامل للتطبيق -->
 <script src="/static/js/voice_commander.js"></script>
+
+<!-- Modal: تنبيه إنهاء الجلسة من تيليجرام الرسمي -->
+<div class="modal fade" id="sessionRevokedModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg" style="border-radius:20px;overflow:hidden;background:#1e293b;color:#f8fafc;">
+      <div class="modal-header border-0 pb-0" style="background:linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);">
+        <h5 class="modal-title text-white fw-bold">
+          <i class="fas fa-shield-alt me-2"></i>تنبيه أمني: تم إنهاء الجلسة من تليجرام
+        </h5>
+      </div>
+      <div class="modal-body p-4 text-center">
+        <div style="font-size:3.5rem;margin-bottom:12px;">🚨</div>
+        <h5 class="fw-bold mb-2 text-warning">تم رصد تسجيل خروج من التطبيق الرسمي</h5>
+        <p class="small text-light mb-3" id="sessionRevokedModalDesc">
+          استشعر النظام أنه تم إنهاء أو إزالة هذه الجلسة من تطبيق تليجرام الرسمي على جهازك. تم تسجيل الخروج تلقائياً وإلغاء الجلسة لحماية بياناتك.
+        </p>
+        <div class="alert alert-danger py-2 small mb-0 text-start" style="border-radius:10px;">
+          <i class="fas fa-info-circle me-1"></i>
+          يمكنك إعادة تسجيل الدخول في أي وقت برقم هاتفك وتأكيد الكود.
+        </div>
+      </div>
+      <div class="modal-footer border-0 pt-0 justify-content-center">
+        <button type="button" class="btn btn-primary px-4" data-bs-dismiss="modal">
+          <i class="fas fa-check me-2"></i>حسناً، فهمت
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
